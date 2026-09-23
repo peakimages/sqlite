@@ -107,7 +107,7 @@ push() {
 
 menu() {
 	local options=("$@") selected=0 key i
-	tput civis 2> /dev/null || true
+	tput civis >&2 2> /dev/null || true
 	while true; do
 		for i in "${!options[@]}"; do
 			if [ "$i" = "$selected" ]; then
@@ -129,7 +129,7 @@ menu() {
 		fi
 		printf '\033[%dA\033[J' "${#options[@]}" >&2
 	done
-	tput cnorm 2> /dev/null || true
+	tput cnorm >&2 2> /dev/null || true
 	echo "$selected"
 }
 
