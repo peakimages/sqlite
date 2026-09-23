@@ -29,6 +29,8 @@ ARG BUSYBOX_VERSION
 ARG SQLITE_UID
 ARG SQLITE_GID
 
+# curl, jq and openssl are only used during the build stage, so they are not pinned to a specific version
+# hadolint ignore=DL3018
 RUN apk add --no-cache build-base curl jq openssl tini-static=${TINI_VERSION} busybox-static=${BUSYBOX_VERSION}
 
 WORKDIR /src
