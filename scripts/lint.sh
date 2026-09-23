@@ -4,7 +4,7 @@ set -euo pipefail
 HADOLINT=hadolint/hadolint:v2.15.1
 SHELLCHECK=koalaman/shellcheck:v0.11.0
 SHFMT=mvdan/shfmt:v3.14.1
-ACTIONLINT=rhysd/actionlint:1.7.12
+ACTIONLINT=kjanat/actionlint:1.17.0
 EDITORCONFIG_CHECKER=mstruebing/editorconfig-checker:4.0.2
 
 BOLD=$'\033[1m' GREEN=$'\033[32m' BLUE=$'\033[34m' RED=$'\033[31m' RESET=$'\033[0m'
