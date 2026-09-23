@@ -7,11 +7,12 @@ SHFMT=mvdan/shfmt:v3.14.1
 ACTIONLINT=rhysd/actionlint:1.7.12
 EDITORCONFIG_CHECKER=mstruebing/editorconfig-checker:4.0.2
 
-BOLD=$'\033[1m' GREEN=$'\033[32m' RED=$'\033[31m' RESET=$'\033[0m'
+BOLD=$'\033[1m' GREEN=$'\033[32m' BLUE=$'\033[34m' RED=$'\033[31m' RESET=$'\033[0m'
 
-heading() { printf '\n%s%s%s\n' "$BOLD" "$*" "$RESET"; }
-ok() { printf '%s✔%s %s\n' "$GREEN" "$RESET" "$*"; }
-err() { printf '%s✖%s %s\n' "$RED" "$RESET" "$*" >&2; }
+heading() { printf '\n  %s%s%s\n' "$BOLD" "$*" "$RESET"; }
+info() { printf '  %sℹ%s %s\n' "$BLUE" "$RESET" "$*"; }
+ok() { printf '  %s✔%s %s\n' "$GREEN" "$RESET" "$*"; }
+err() { printf '  %s✖%s %s\n' "$RED" "$RESET" "$*" >&2; }
 die() {
 	err "$@"
 	exit 1
@@ -28,13 +29,13 @@ main() {
 		--fix) format ;;
 		*) die "usage: scripts/lint.sh [--fix]" ;;
 	esac
-	check "Dockerfile (hadolint)" "$HADOLINT" hadolint src/Dockerfile
-	check "shell scripts (ShellCheck)" "$SHELLCHECK" scripts/*.sh src/*.sh src/rootfs/usr/local/bin/*.sh
-	check "shell formatting (shfmt)" "$SHFMT" -d scripts src
-	# Drop the ignore once actionlint accepts workflow call "\$/.*": https://github.com/rhysd/actionlint/issues/736
-	check "workflows (actionlint)" "$ACTIONLINT" -ignore 'reusable workflow call "\$/.*" at "uses" is not following the format'
-	check "every file (editorconfig-checker)" "$EDITORCONFIG_CHECKER" editorconfig-checker -exclude '^LICENSE$'
-	[ "$failed" = 0 ] || die "$failed check(s) failed"
+	heading "Linting"
+	check src/Dockerfile hadolint "$HADOLINT" hadolint src/Dockerfile
+	check "the shell scripts" ShellCheck "$SHELLCHECK" scripts/*.sh src/*.sh src/rootfs/usr/local/bin/*.sh
+	check "the shell scripts" shfmt "$SHFMT" -d scripts src
+	check "the workflows" actionlint "$ACTIONLINT"
+	check "every file" editorconfig-checker "$EDITORCONFIG_CHECKER" editorconfig-checker -exclude '^LICENSE$'
+	[ "$failed" = 0 ] || die "$failed of 5 checks failed"
 	heading "All checks passed"
 }
 
@@ -46,19 +47,21 @@ format() {
 }
 
 check() {
-	local name="$1" image="$2"
-	shift 2
-	heading "$name"
+	local files="$1" linter="$2" image="$3"
+	shift 3
 	if tool "$image" "$@"; then
-		ok "$name"
+		ok "$files passed $linter"
 	else
-		err "$name"
+		err "$files failed $linter"
 		failed=$((failed + 1))
 	fi
 }
 
 tool() {
-	docker image inspect "$1" > /dev/null 2>&1 || docker pull --quiet "$1" > /dev/null
+	if ! docker image inspect "$1" > /dev/null 2>&1; then
+		info "pulling $1"
+		docker pull --quiet "$1" > /dev/null
+	fi
 	docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/mnt" -w /mnt "$@"
 }
 
