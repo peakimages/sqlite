@@ -1,0 +1,190 @@
+name: Release
+
+on:
+  workflow_call:
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+
+permissions: {}
+
+concurrency: release
+
+jobs:
+  version:
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
+    timeout-minutes: 30
+    outputs:
+      publish: ${{ steps.version.outputs.publish }}
+      release: ${{ steps.version.outputs.release }}
+      sqlite: ${{ steps.version.outputs.sqlite }}
+      image: ${{ steps.version.outputs.image }}
+      draft: ${{ steps.version.outputs.draft }}
+      tags: ${{ steps.version.outputs.tags }}
+      created: ${{ steps.version.outputs.created }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # https://github.com/actions/checkout/releases/tag/v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Read the versions
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sqlite="$(jq -r .version src/version.json)"
+          image="$(sed -nE 's/^ARG IMAGE_VERSION=(.*)$/\1/p' src/Dockerfile)"
+          previous="$(git show HEAD~1:src/Dockerfile | sed -nE 's/^ARG IMAGE_VERSION=(.*)$/\1/p')"
+          release="$sqlite-v$image"
+          publish=true
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$release" > /dev/null 2>&1 || gh release view "$release" > /dev/null 2>&1; then
+            echo "::notice::$release is published already, nothing to release"
+            publish=false
+          fi
+          draft=false
+          [ "$image" = "$previous" ] || draft=true
+          {
+            echo "publish=$publish"
+            echo "release=$release"
+            echo "sqlite=$sqlite"
+            echo "image=$image"
+            echo "draft=$draft"
+            echo "tags=$release $sqlite ${sqlite%.*} ${sqlite%%.*} latest"
+            echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    if: needs.version.outputs.publish == 'true'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ${{ matrix.runner }} # https://github.com/actions/runner-images
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-26.04
+          - platform: linux/arm64
+            runner: ubuntu-26.04-arm
+          - platform: linux/arm/v7
+            runner: ubuntu-26.04-arm
+            qemu: true
+          - platform: linux/riscv64
+            runner: ubuntu-26.04
+            qemu: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # https://github.com/actions/checkout/releases/tag/v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # https://github.com/docker/setup-qemu-action/releases/tag/v4.4.0
+        if: matrix.qemu
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # https://github.com/docker/setup-buildx-action/releases/tag/v4.4.1
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # https://github.com/docker/login-action/releases/tag/v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # https://github.com/docker/login-action/releases/tag/v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # https://github.com/docker/build-push-action/releases/tag/v7.4.0
+        id: build
+        with:
+          context: src
+          platforms: ${{ matrix.platform }}
+          tags: |
+            ghcr.io/${{ github.repository }}
+            docker.io/${{ github.repository }}
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            BUILD_DATE=${{ needs.version.outputs.created }}
+            GIT_SHA=${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+
+      - name: Save the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # https://github.com/actions/upload-artifact/releases/tag/v7.0.1
+        with:
+          name: digest-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [version, build]
+    permissions:
+      contents: write
+      packages: write
+    runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # https://github.com/actions/checkout/releases/tag/v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # https://github.com/actions/download-artifact/releases/tag/v8.0.1
+        with:
+          pattern: digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # https://github.com/docker/setup-buildx-action/releases/tag/v4.4.1
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # https://github.com/docker/login-action/releases/tag/v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # https://github.com/docker/login-action/releases/tag/v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag the images
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          TAGS: ${{ needs.version.outputs.tags }}
+        run: |
+          for image in "ghcr.io/$GITHUB_REPOSITORY" "docker.io/$GITHUB_REPOSITORY"; do
+            args=()
+            for tag in $TAGS; do args+=(--tag "$image:$tag"); done
+            for digest in *; do args+=("$image@sha256:$digest"); done
+            docker buildx imagetools create "${args[@]}"
+          done
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ needs.version.outputs.release }}
+          SQLITE: ${{ needs.version.outputs.sqlite }}
+          IMAGE: ${{ needs.version.outputs.image }}
+          DRAFT: ${{ needs.version.outputs.draft }}
+        run: |
+          args=()
+          if [ "$DRAFT" = true ]; then
+            awk -v heading="## [v$IMAGE]" 'index($0, heading) == 1 { inside = 1; next } /^## / { inside = 0 } inside' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+            args=(--draft)
+          else
+            echo "SQLite $SQLITE, release notes: https://sqlite.org/releaselog/${SQLITE//./_}.html" > "$RUNNER_TEMP/notes.md"
+          fi
+          gh release create "$RELEASE" "${args[@]}" --target "$GITHUB_SHA" --title "$RELEASE" --notes-file "$RUNNER_TEMP/notes.md"
