@@ -29,7 +29,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # https://github.com/actions/checkout/releases/tag/v7.0.1
         with:
-          fetch-depth: 2
           persist-credentials: false
 
       - name: Read the versions
@@ -39,15 +38,16 @@ jobs:
         run: |
           sqlite="$(jq -r .version src/version.json)"
           image="$(sed -nE 's/^ARG IMAGE_VERSION=(.*)$/\1/p' src/Dockerfile)"
-          previous="$(git show HEAD~1:src/Dockerfile | sed -nE 's/^ARG IMAGE_VERSION=(.*)$/\1/p')"
           release="$sqlite-v$image"
           publish=true
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$release" > /dev/null 2>&1 || gh release view "$release" > /dev/null 2>&1; then
             echo "::notice::$release is published already, nothing to release"
             publish=false
           fi
+          # the first release of an image version is a draft with the notes from CHANGELOG.md
+          released="$(gh api --paginate "repos/$GITHUB_REPOSITORY/tags" --jq ".[].name | select(endswith(\"-v$image\"))")"
           draft=false
-          [ "$image" = "$previous" ] || draft=true
+          [ -n "$released" ] || draft=true
           {
             echo "publish=$publish"
             echo "release=$release"
