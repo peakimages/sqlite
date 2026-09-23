@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HADOLINT=hadolint/hadolint:v2.15.1
+SHELLCHECK=koalaman/shellcheck:v0.11.0
+SHFMT=mvdan/shfmt:v3.14.1
+ACTIONLINT=rhysd/actionlint:1.7.12
+EDITORCONFIG_CHECKER=mstruebing/editorconfig-checker:4.0.2
+
+BOLD=$'\033[1m' GREEN=$'\033[32m' RED=$'\033[31m' RESET=$'\033[0m'
+
+heading() { printf '\n%s%s%s\n' "$BOLD" "$*" "$RESET"; }
+ok() { printf '%s✔%s %s\n' "$GREEN" "$RESET" "$*"; }
+err() { printf '%s✖%s %s\n' "$RED" "$RESET" "$*" >&2; }
+die() {
+	err "$@"
+	exit 1
+}
+
+cd "$(dirname "$0")/.."
+failed=0
+
+main() {
+	command -v docker > /dev/null || die "docker is not installed"
+	docker info > /dev/null 2>&1 || die "docker is not running"
+	case "${1:-}" in
+		"") ;;
+		--fix) format ;;
+		*) die "usage: scripts/lint.sh [--fix]" ;;
+	esac
+	check "Dockerfile (hadolint)" "$HADOLINT" hadolint src/Dockerfile
+	check "shell scripts (ShellCheck)" "$SHELLCHECK" scripts/*.sh src/*.sh src/rootfs/usr/local/bin/*.sh
+	check "shell formatting (shfmt)" "$SHFMT" -d scripts src
+	# Drop the ignore once actionlint accepts workflow call "\$/.*": https://github.com/rhysd/actionlint/issues/736
+	check "workflows (actionlint)" "$ACTIONLINT" -ignore 'reusable workflow call "\$/.*" at "uses" is not following the format'
+	check "every file (editorconfig-checker)" "$EDITORCONFIG_CHECKER" editorconfig-checker -exclude '^LICENSE$'
+	[ "$failed" = 0 ] || die "$failed check(s) failed"
+	heading "All checks passed"
+}
+
+format() {
+	heading "Formatting"
+	tool "$SHFMT" -w scripts src
+	tool "$EDITORCONFIG_CHECKER" editorconfig-checker -fix -exclude '^LICENSE$' > /dev/null || true
+	ok "shfmt and editorconfig-checker wrote their fixes"
+}
+
+check() {
+	local name="$1" image="$2"
+	shift 2
+	heading "$name"
+	if tool "$image" "$@"; then
+		ok "$name"
+	else
+		err "$name"
+		failed=$((failed + 1))
+	fi
+}
+
+tool() {
+	docker image inspect "$1" > /dev/null 2>&1 || docker pull --quiet "$1" > /dev/null
+	docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/mnt" -w /mnt "$@"
+}
+
+main "$@"
