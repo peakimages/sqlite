@@ -8,9 +8,14 @@ indent_size = 4
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-[*.{yml,yaml}]
-indent_style = space
-indent_size = 2
+[*.sh]
+binary_next_line = true
+switch_case_indent = true
+space_redirects = true
 
-[*.md]
+[Dockerfile]
+indent_style = space
+
+[*.{json,yml,yaml,md}]
+indent_style = space
 indent_size = 2
