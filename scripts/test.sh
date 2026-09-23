@@ -61,7 +61,8 @@ start_container() {
 		-e SQLITE_DATABASES="app.sqlite,jobs.sqlite" \
 		--health-interval 2s --health-start-period 1s "$IMAGE" > /dev/null
 	wait_healthy "$CONTAINER"
-	docker exec "$CONTAINER" ps -o args | grep -qx 'sleep infinity' || die "the main process is not sleep infinity"
+	# no exact match (-x), under QEMU ps shows "{sleep} /usr/bin/qemu-riscv64 /bin/sleep infinity"
+	docker exec "$CONTAINER" ps -o args | grep -q 'sleep infinity$' || die "the main process is not sleep infinity"
 	ok "healthy with a read-only root filesystem and all capabilities dropped, main process sleep infinity"
 }
 
