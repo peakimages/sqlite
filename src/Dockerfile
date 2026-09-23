@@ -3,7 +3,7 @@
 # Set by scripts/check-upstream.sh
 ARG SQLITE_VERSION=3.53.4
 # Set by scripts/release.sh
-ARG IMAGE_VERSION=0.0.0
+ARG IMAGE_VERSION=0.1.0
 
 # Build dependencies
 # https://hub.docker.com/_/alpine/tags?name=3.24.2
