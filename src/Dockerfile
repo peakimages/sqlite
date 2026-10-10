@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Set by scripts/check-upstream.sh
-ARG SQLITE_VERSION=3.53.4
+ARG SQLITE_VERSION=3.54.0
 # Set by scripts/release.sh
 ARG IMAGE_VERSION=0.1.0
 
