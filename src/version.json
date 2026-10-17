@@ -1,7 +1,7 @@
 {
-  "version": "3.54.0",
-  "url": "https://sqlite.org/2026/sqlite-amalgamation-3540000.zip",
-  "size": 2990479,
-  "sha3_256": "7b670a62fdfbd672b75fef004cb703c8a3e87d3a5cc7d675b4a08337004a2d93",
-  "source_id": "2026-10-09 15:46:58 be8d059e9a49089ab2dce5ed26dd87aaf598fdc5fbe0b107c0dd758464bcd5e3"
+  "version": "3.54.1",
+  "url": "https://sqlite.org/2026/sqlite-amalgamation-3540100.zip",
+  "size": 2990966,
+  "sha3_256": "92281c86e2957f9b9305890f9ac04204caa7b677cc868dc326d942689df28e30",
+  "source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76"
 }
