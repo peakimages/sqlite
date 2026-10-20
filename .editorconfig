@@ -16,6 +16,6 @@ space_redirects = true
 [Dockerfile]
 indent_style = space
 
-[*.{json,yml,yaml,md}]
+[*.{yml,yaml,md}]
 indent_style = space
 indent_size = 2

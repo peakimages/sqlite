@@ -51,7 +51,7 @@ download_amalgamation() {
 }
 
 write_version_json() {
-	jq -n --arg version "$version" --arg url "$url" --argjson size "$size" --arg sha3_256 "$sha3" --arg source_id "$source_id" \
+	jq -n --tab --arg version "$version" --arg url "$url" --argjson size "$size" --arg sha3_256 "$sha3" --arg source_id "$source_id" \
 		'{$version, $url, $size, $sha3_256, $source_id}' > src/version.json
 	ok "src/version.json pins $BOLD$version$RESET with url, size, SHA3-256 and source id $source_id"
 }
