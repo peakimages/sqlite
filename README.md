@@ -1,17 +1,17 @@
 # SQLite
 
-[![Tests](https://img.shields.io/github/actions/workflow/status/peakimages/sqlite/tests.yaml?branch=main&label=tests)](https://github.com/peakimages/sqlite/actions/workflows/tests.yaml)
+[![Release](https://img.shields.io/github/actions/workflow/status/peakimages/sqlite/release.yaml?branch=main&label=release)](https://github.com/peakimages/sqlite/actions/workflows/release.yaml)
 [![SQLite](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpeakimages%2Fsqlite%2Fmain%2Fsrc%2Fupstream.json&query=%24.sqlite.latest.version&label=sqlite)](https://github.com/peakimages/sqlite/releases)
 [![License](https://img.shields.io/github/license/peakimages/sqlite)](LICENSE)
 [![Docker pulls](https://img.shields.io/docker/pulls/peakimages/sqlite)](https://hub.docker.com/r/peakimages/sqlite)
-[![Image size](https://img.shields.io/docker/image-size/peakimages/sqlite/latest)](https://hub.docker.com/r/peakimages/sqlite)
+[![Image size](https://img.shields.io/docker/image-size/peakimages/sqlite/latest?arch=amd64)](https://hub.docker.com/r/peakimages/sqlite)
 
 ## Introduction
 
-Minimal, production-ready, hardened and secure SQLite Docker image. Made for SQLite database deployments on [Coolify](https://coolify.io) and any other container host.
+A central home for one or more SQLite databases. One minimal and hardened container creates every database you name, health checks them and brings the `sqlite3` shell for backups, restores and maintenance. Made for [Coolify](https://coolify.io?ref=peakimages.dev) and any other container host.
 
 > [!IMPORTANT]
-> `peakimages/sqlite` is currently **v0** and subject to breaking changes prior to `v1.0.0`. Pin to a specific version like `peakimages/sqlite:3.53.4-v0.1.0` to avoid breaking changes.
+> `peakimages/sqlite` is currently **v0** and subject to breaking changes prior to `v1.0.0`. Pin to a specific version like `peakimages/sqlite:3.54.1-v0.2.0` to avoid breaking changes.
 
 ### What Makes This Image Different?
 
@@ -22,9 +22,9 @@ SQLite has no server and the database is just a file. Application images rarely 
 - ✅ Zero Config Required: Production-ready defaults, customizable with environment variables
 - ✅ Multi-Database Support: One container creates and health checks every database you name
 - ✅ Verified Source: Size, SHA3-256 and source id of the official amalgamation are checked before each compilation
-- ✅ Batteries Included: `FTS3`, `FTS4`, `FTS5`, `R*Tree`, `Geopoly`, `JSON`, `math`, `dbstat` and `soundex` SQLite extensions
-- ✅ Modern Architecture: Native health checks, `tini` init, OCI labels, provenance and SBOM attestations
-- ✅ Always Current: sqlite.org is checked daily and every new SQLite release becomes a new image
+- ✅ Batteries Included: `FTS3`, `FTS4`, `FTS5`, `R*Tree`, `Geopoly`, `math`, `dbstat`, `dbpage`, `stmt` and `soundex` SQLite extensions
+- ✅ Modern Architecture: Native health checks, `tini` init, OCI labels, reproducible builds, provenance and SBOM attestations
+- ✅ Always Current: sqlite.org is checked twice a day and new SQLite releases become new images
 - ✅ Multi-Architecture: Builds for `linux/amd64`, `linux/arm64`, `linux/arm/v7` and `linux/riscv64`
 - ✅ Tested: Every release is tested on all four platforms before it is published
 
@@ -33,6 +33,8 @@ SQLite has no server and the database is just a file. Application images rarely 
 To see a comparison of this image with other popular SQLite Docker images, see [docs/comparison.md](docs/comparison.md).
 
 ## Getting Started
+
+SQLite is not a server and the database is just a file. The application reads and writes it with the SQLite engine it bundles, such as `pdo_sqlite` for PHP or `rusqlite` for Rust, so the SQLite version and extensions of that engine apply, not the ones of this image. This container shares the volume with the application and looks after the files: it creates and configures them, health checks them and brings the `sqlite3` shell for backups, restores and maintenance.
 
 ### Docker
 
@@ -46,13 +48,10 @@ docker run -d --name sqlite -v sqlite-data:/var/lib/sqlite peakimages/sqlite
 
 Add the SQLite container next to the application that needs a SQLite database, both mounting the same volume:
 
-> [!IMPORTANT]
-> The application must run as uid `65532`, the `nonroot` user of distroless images, or as root to write to the database.
-
 ```yaml
 services:
   sqlite:
-    image: peakimages/sqlite:3.53.4-v0.1.0
+    image: peakimages/sqlite:3.54.1-v0.2.0
     environment:
       SQLITE_DATABASES: app.sqlite, jobs.sqlite
     volumes:
@@ -60,7 +59,6 @@ services:
 
   app:
     image: your-app
-    user: "65532:65532"
     depends_on:
       sqlite:
         condition: service_healthy
@@ -73,6 +71,14 @@ volumes:
   sqlite-data:
 ```
 
+### Shell for Other Images
+
+`sqlite3` is a static binary without dependencies. You can copy it into any image with a single line, and it works on `scratch`, distroless, Alpine, Debian and more, for backups, restores and maintenance without a package manager:
+
+```dockerfile
+COPY --from=peakimages/sqlite:3.54.1-v0.2.0 /usr/local/bin/sqlite3 /usr/local/bin/sqlite3
+```
+
 ## Available Image Variations
 
 For now there is just one image variation. All tags follow this pattern:
@@ -83,15 +89,16 @@ peakimages/sqlite:{{sqlite-version}}-v{{image-version}}
 
 | Variation | Best For                                                            | Example                                                      |
 | --------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
-| default   | Every SQLite deployment, from a Coolify service to a Kubernetes pod | `peakimages/sqlite:3.53.4-v0.1.0` `peakimages/sqlite:3.53.4` |
+| default   | Every SQLite deployment, from a Coolify service to a Kubernetes pod | `peakimages/sqlite:3.54.1-v0.2.0` `peakimages/sqlite:3.54.1` |
 
 ### Tags
 
-| Tag                   | Meaning                                                       |
-| --------------------- | ------------------------------------------------------------- |
-| `3.53.4-v0.1.0`       | Immutable: SQLite 3.53.4 built as image v0.1.0, never rebuilt |
-| `3.53.4`, `3.53`, `3` | Newest build of that SQLite patch, minor or major version     |
-| `latest`              | Newest build                                                  |
+| Tag                   | Meaning                                                                       |
+| --------------------- | ----------------------------------------------------------------------------- |
+| `3.54.1-v0.2.0`       | Immutable: SQLite 3.54.1 built as image v0.2.0, never rebuilt                 |
+| `3.54.1`, `3.54`, `3` | Newest release of that SQLite patch, minor or major version                   |
+| `latest`              | Newest release                                                                |
+| `preview`             | Newest prerelease, like `3.54.1-v0.3.0-beta.1`, until its release replaces it |
 
 ### Registries
 
@@ -114,6 +121,6 @@ The defaults are set in the image, override them with `-e` or the `environment` 
 
 ## Releases
 
-Every SQLite release becomes a new version of the image. A check for new SQLite versions is run daily.
+Every SQLite release becomes a new version of the image. A check for new SQLite versions runs twice a day.
 
 The image version follows semantic versioning independently of SQLite. Changes to the image are listed in [CHANGELOG.md](CHANGELOG.md).
