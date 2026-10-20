@@ -33,7 +33,8 @@ COPY version.json verify.sh ./
 RUN curl --proto '=https' --tlsv1.2 -sSf --retry 3 -o sqlite.zip "$(jq -r .url version.json)" \
     && sh verify.sh
 
-# Compile SQLite and the sqlite3 shell into one static binary using recommended compile time options: https://sqlite.org/compile.html#recommended_compile_time_options
+# Compile SQLite and the sqlite3 shell into one static binary using recommended compile time options:
+# https://sqlite.org/compile.html#recommended_compile_time_options and https://sqlite.org/cli.html#compiling_the_command_line_interface
 WORKDIR /src/sqlite
 RUN gcc -static-pie -fPIE -Os \
         -ffunction-sections -fdata-sections -Wl,--gc-sections \
@@ -59,6 +60,11 @@ RUN gcc -static-pie -fPIE -Os \
         -DSQLITE_ENABLE_GEOPOLY \
         -DSQLITE_ENABLE_MATH_FUNCTIONS \
         -DSQLITE_ENABLE_DBSTAT_VTAB \
+        -DSQLITE_ENABLE_DBPAGE_VTAB \
+        -DSQLITE_ENABLE_STMTVTAB \
+        -DSQLITE_ENABLE_EXPLAIN_COMMENTS \
+        -DSQLITE_ENABLE_UNKNOWN_SQL_FUNCTION \
+        -DSQLITE_ENABLE_OFFSET_SQL_FUNC \
         -DSQLITE_SOUNDEX \
         -DHAVE_USLEEP=1 \
         -DHAVE_FDATASYNC=1 \
@@ -99,7 +105,7 @@ LABEL org.opencontainers.image.title="SQLite" \
     org.opencontainers.image.documentation="https://github.com/peakimages/sqlite#readme" \
     org.opencontainers.image.base.name="scratch" \
     dev.peakimages.sqlite.version="${SQLITE_VERSION}" \
-    dev.peakimages.sqlite.extensions="fts3,fts4,fts5,rtree,geopoly,math,dbstat,soundex" \
+    dev.peakimages.sqlite.extensions="fts3,fts4,fts5,rtree,geopoly,math,dbstat,dbpage,stmt,soundex" \
     dev.peakimages.tini.version="${TINI_VERSION}" \
     dev.peakimages.busybox.version="${BUSYBOX_VERSION}" \
     dev.peakimages.image.version="${IMAGE_VERSION}"

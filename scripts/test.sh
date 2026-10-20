@@ -30,6 +30,7 @@ main() {
 	check_rejected_settings
 	heading "Data"
 	seed_database
+	recover_database
 	backup_database
 	restore_database
 	check_stop
@@ -128,8 +129,25 @@ seed_database() {
 	[ "$(sql app.sqlite "SELECT json_extract('{\"a\":1}','\$.a') + sqrt(16);")" = 5.0 ] || die "JSON or math functions"
 	[ "$(sql app.sqlite "SELECT soundex('Robert');")" = R163 ] || die "soundex()"
 	[ "$(sql app.sqlite 'SELECT count(*) > 0 FROM dbstat;')" = 1 ] || die "dbstat"
+	[ "$(sql app.sqlite 'SELECT count(*) > 0 FROM sqlite_dbpage;')" = 1 ] || die "dbpage"
+	[ "$(sql app.sqlite 'SELECT count(*) > 0 FROM sqlite_stmt;')" = 1 ] || die "stmt"
 	[ "$(sql app.sqlite 'PRAGMA integrity_check;')" = ok ] || die "integrity check after seeding"
-	ok "FTS3, FTS4, FTS5, R*Tree, Geopoly, JSON, math functions, soundex() and dbstat work"
+	ok "FTS3, FTS4, FTS5, R*Tree, Geopoly, JSON, math functions, soundex(), dbstat, dbpage and stmt work"
+}
+
+recover_database() {
+	local page result
+	sql app.sqlite "VACUUM INTO 'damaged.sqlite';"
+	[ "$(sql damaged.sqlite .dbinfo | sed -nE 's/^database page size: +//p')" = 4096 ] || die ".dbinfo does not print the page size 4096"
+	sql damaged.sqlite 'CREATE TABLE junk(id INTEGER PRIMARY KEY, filler BLOB); INSERT INTO junk(filler) SELECT randomblob(500) FROM t;'
+	page="$(sql damaged.sqlite "SELECT rootpage FROM sqlite_master WHERE name = 'junk';")"
+	sql -cmd '.dbconfig defensive off' damaged.sqlite "UPDATE sqlite_dbpage SET data = randomblob(4096) WHERE pgno = $page;" > /dev/null
+	[ "$(sql damaged.sqlite 'PRAGMA integrity_check;' 2>&1 | head -n 1)" != ok ] || die "overwriting page $page of damaged.sqlite left it intact"
+	docker exec "$CONTAINER" sh -c 'sqlite3 damaged.sqlite .recover | sqlite3 recovered.sqlite > /dev/null && rm damaged.sqlite' || die ".recover failed on the damaged database"
+	result="$(sql recovered.sqlite 'PRAGMA integrity_check; SELECT count(*) FROM t;' | tr '\n' ' ')"
+	[ "$result" = 'ok 3 ' ] || die "the recovered database is not intact and complete, got '$result'"
+	docker exec "$CONTAINER" rm recovered.sqlite
+	ok ".dbinfo prints the page size, .recover rebuilds the rows from a database with a destroyed page"
 }
 
 backup_database() {
