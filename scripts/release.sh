@@ -90,7 +90,7 @@ commit() {
 
 push() {
 	local tag
-	tag="$(jq -r .version src/version.json)-v$new_version"
+	tag="$(jq -r .sqlite.latest.version src/upstream.json)-v$new_version"
 	if confirm "Push to origin/main?"; then
 		git push --quiet origin main
 		ok "pushed to origin/main, the tests run and then the release workflow publishes $BOLD$tag$RESET"

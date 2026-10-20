@@ -40,10 +40,10 @@ main() {
 check_version() {
 	local printed version source_id
 	printed="$(docker run --rm "$IMAGE" --version)"
-	version="$(jq -r .version src/version.json)"
-	source_id="$(jq -r .source_id src/version.json)"
+	version="$(jq -r .sqlite.latest.version src/upstream.json)"
+	source_id="$(jq -r .sqlite.latest.source_id src/upstream.json)"
 	[[ "$printed" == "$version $source_id "* ]] || die "sqlite3 --version prints '$printed', expected '$version $source_id'"
-	ok "sqlite3 --version prints $version with the source id from src/version.json"
+	ok "sqlite3 --version prints $version with the source id from src/upstream.json"
 }
 
 check_default_database() {

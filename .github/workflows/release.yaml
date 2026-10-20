@@ -35,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          sqlite="$(jq -r .version src/version.json)"
+          sqlite="$(jq -r .sqlite.latest.version src/upstream.json)"
           image="$(sed -nE 's/^ARG IMAGE_VERSION=(.*)$/\1/p' src/Dockerfile)"
           release="$sqlite-v$image"
           publish=true

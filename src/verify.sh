@@ -1,12 +1,12 @@
 #!/bin/sh
 set -eu
 
-cd "$(dirname "$0")"
-
 die() {
 	echo "verify: $*" >&2
 	exit 1
 }
+
+cd "$(dirname "$0")"
 
 main() {
 	check_version
@@ -17,13 +17,13 @@ main() {
 }
 
 check_version() {
-	[ "$(pin version)" = "$SQLITE_VERSION" ] || die "version.json pins $(pin version), the Dockerfile says $SQLITE_VERSION"
+	[ "$(pin version)" = "$SQLITE_VERSION" ] || die "upstream.json pins $(pin version), the Dockerfile says $SQLITE_VERSION"
 }
 
 check_download() {
 	size="$(wc -c < sqlite.zip | tr -d ' ')"
 	[ "$size" = "$(pin size)" ] || die "sqlite.zip has $size bytes, expected $(pin size)"
-	[ "$(openssl dgst -sha3-256 -r sqlite.zip | cut -d ' ' -f 1)" = "$(pin sha3_256)" ] || die "SHA3-256 of sqlite.zip does not match version.json"
+	[ "$(openssl dgst -sha3-256 -r sqlite.zip | cut -d ' ' -f 1)" = "$(pin sha3_256)" ] || die "SHA3-256 of sqlite.zip does not match upstream.json"
 }
 
 unpack() {
@@ -37,7 +37,7 @@ check_header() {
 }
 
 pin() {
-	jq -r ".$1" version.json
+	jq -r ".sqlite.latest.$1" upstream.json
 }
 
 main

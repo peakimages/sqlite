@@ -1,7 +1,7 @@
 # SQLite
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/peakimages/sqlite/tests.yaml?branch=main&label=tests)](https://github.com/peakimages/sqlite/actions/workflows/tests.yaml)
-[![SQLite](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpeakimages%2Fsqlite%2Fmain%2Fsrc%2Fversion.json&query=%24.version&label=sqlite)](https://github.com/peakimages/sqlite/releases)
+[![SQLite](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpeakimages%2Fsqlite%2Fmain%2Fsrc%2Fupstream.json&query=%24.sqlite.latest.version&label=sqlite)](https://github.com/peakimages/sqlite/releases)
 [![License](https://img.shields.io/github/license/peakimages/sqlite)](LICENSE)
 [![Docker pulls](https://img.shields.io/docker/pulls/peakimages/sqlite)](https://hub.docker.com/r/peakimages/sqlite)
 [![Image size](https://img.shields.io/docker/image-size/peakimages/sqlite/latest)](https://hub.docker.com/r/peakimages/sqlite)

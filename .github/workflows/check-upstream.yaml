@@ -38,9 +38,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git diff --quiet && exit 0
-          current_version="$(git show HEAD:src/version.json | jq -r .version)"
-          new_version="$(jq -r .version src/version.json)"
-          source_id="$(jq -r .source_id src/version.json)"
+          current_version="$(git show HEAD:src/upstream.json | jq -r .sqlite.latest.version)"
+          new_version="$(jq -r .sqlite.latest.version src/upstream.json)"
+          source_id="$(jq -r .sqlite.latest.source_id src/upstream.json)"
           check_in="${source_id##* }"
           branch="feat/sqlite-v$new_version"
           title="feat(release): bump SQLite version from v$current_version to v$new_version"

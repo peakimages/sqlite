@@ -19,7 +19,7 @@ main() {
 	read_latest_release
 	compare_with_pinned
 	download_amalgamation
-	write_version_json
+	write_upstream_json
 	verify_amalgamation
 	verify_release_check_in
 	update_dockerfile
@@ -36,7 +36,7 @@ read_latest_release() {
 
 compare_with_pinned() {
 	local current_version
-	current_version="$(jq -r .version src/version.json)"
+	current_version="$(jq -r .sqlite.latest.version src/upstream.json)"
 	if [ "$new_version" = "$current_version" ]; then
 		ok "SQLite $BOLD$current_version$RESET is pinned and the current release on sqlite.org"
 		exit 0
@@ -51,16 +51,17 @@ download_amalgamation() {
 	ok "downloaded ${url##*/}, $size bytes"
 }
 
-write_version_json() {
-	jq -n --tab --arg version "$new_version" --arg url "$url" --argjson size "$size" --arg sha3_256 "$sha3" --arg source_id "$source_id" \
-		'{$version, $url, $size, $sha3_256, $source_id}' > src/version.json
-	ok "src/version.json pins $BOLD$new_version$RESET with url, size, SHA3-256 and source id $source_id"
+write_upstream_json() {
+	jq --tab --arg version "$new_version" --arg url "$url" --argjson size "$size" --arg sha3_256 "$sha3" --arg source_id "$source_id" \
+		'.sqlite.latest = {$version, $url, $size, $sha3_256, $source_id}' src/upstream.json > "$WORK_DIR/upstream.json"
+	cp "$WORK_DIR/upstream.json" src/upstream.json
+	ok "src/upstream.json pins $BOLD$new_version$RESET with url, size, SHA3-256 and source id $source_id"
 }
 
 verify_amalgamation() {
-	cp src/verify.sh src/version.json "$WORK_DIR"
+	cp src/verify.sh src/upstream.json "$WORK_DIR"
 	SQLITE_VERSION="$new_version" sh "$WORK_DIR/verify.sh" > /dev/null
-	ok "src/verify.sh accepts the download against the new src/version.json"
+	ok "src/verify.sh accepts the download against the new src/upstream.json"
 }
 
 verify_release_check_in() {
