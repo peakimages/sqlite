@@ -2,16 +2,28 @@ name: Check upstream
 
 on:
   schedule:
-    - cron: "30 8 * * *"
+    - cron: "30 6,18 * * *"
   workflow_dispatch:
 
 permissions: {}
 
+cache-mode: none
+
+concurrency:
+  group: check-upstream
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   check:
+    name: Check for a new SQLite release
     permissions:
-      contents: write
-      pull-requests: write
+      actions: write # run the tests on the branch of the pull request
+      contents: write # push the branch of the pull request
+      pull-requests: write # open the pull request
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
     timeout-minutes: 30
     steps:
@@ -26,22 +38,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git diff --quiet && exit 0
-          version="$(jq -r .version src/version.json)"
+          current_version="$(git show HEAD:src/version.json | jq -r .version)"
+          new_version="$(jq -r .version src/version.json)"
           source_id="$(jq -r .source_id src/version.json)"
-          branch="feat/sqlite-v$version"
-          title="feat(release): bump SQLite version to v$version"
+          check_in="${source_id##* }"
+          branch="feat/sqlite-v$new_version"
+          title="feat(release): bump SQLite version from v$current_version to v$new_version"
           if [ -n "$(gh pr list --head "$branch" --json number --jq '.[0].number')" ]; then
             echo "a pull request from $branch is open already"
             exit 0
           fi
           cat > "$RUNNER_TEMP/body.md" <<BODY
-          Release notes: https://sqlite.org/releaselog/${version//./_}.html
+          Updates SQLite to $new_version, the latest release on sqlite.org, see its [release notes](https://sqlite.org/releaselog/${new_version//./_}.html) and its [release check-in](https://sqlite.org/src/info/$check_in).
 
-          Source id \`$source_id\`, confirm the check-in on https://sqlite.org/src/timeline?t=release before merging.
+          ## Changes
+
+          - Bump SQLite version from v$current_version to v$new_version
 
           > [!IMPORTANT]
           > Squash merge this PR to keep the commit history clean.
-
           BODY
           gh auth setup-git
           git config user.name "github-actions[bot]"
@@ -49,4 +64,8 @@ jobs:
           git switch --create "$branch"
           git commit --all --quiet --message "$title"
           git push --quiet --set-upstream origin "$branch"
-          gh pr create --base main --head "$branch" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          new_pr="$(gh pr create --base main --head "$branch" --title "$title" --label bot/upstream --body-file "$RUNNER_TEMP/body.md")"
+          gh workflow run tests.yaml --ref "$branch"
+          for open_pr in $(gh pr list --label bot/upstream --json url --jq '.[].url'); do
+            [ "$open_pr" = "$new_pr" ] || gh pr close "$open_pr" --delete-branch --comment "Superseded by $new_pr"
+          done
