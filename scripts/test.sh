@@ -26,6 +26,7 @@ main() {
 	check_databases
 	check_healthcheck
 	check_restart
+	check_other_user
 	check_creation_settings
 	check_rejected_settings
 	heading "Data"
@@ -68,12 +69,12 @@ start_container() {
 }
 
 check_databases() {
-	local owner
+	local file
 	[ "$(sql app.sqlite 'PRAGMA journal_mode;')" = wal ] || die "app.sqlite is not in WAL mode"
 	[ "$(sql jobs.sqlite 'PRAGMA journal_mode;')" = wal ] || die "jobs.sqlite is not in WAL mode"
-	owner="$(docker exec "$CONTAINER" stat -c '%u:%g' jobs.sqlite)"
-	[ "$owner" = 65532:65532 ] || die "jobs.sqlite is owned by $owner, expected 65532:65532"
-	ok "app.sqlite and jobs.sqlite from SQLITE_DATABASES are created in WAL mode, owned by $owner"
+	file="$(docker exec "$CONTAINER" stat -c '%a %u:%g' jobs.sqlite)"
+	[ "$file" = '666 65532:65532' ] || die "jobs.sqlite has mode and owner '$file', expected 666 65532:65532"
+	ok "app.sqlite and jobs.sqlite from SQLITE_DATABASES are created in WAL mode, mode 666, owned by 65532:65532"
 }
 
 check_healthcheck() {
@@ -89,6 +90,22 @@ check_restart() {
 	[ "$(sql app.sqlite 'PRAGMA journal_mode;')" = delete ] || die "a restart changed the journal mode of an existing database"
 	sql app.sqlite 'PRAGMA journal_mode=WAL;' > /dev/null
 	ok "a restart leaves an existing database as it is"
+}
+
+check_other_user() {
+	local rows
+	docker run -d --name "$CONTAINER-user" --user 1000:1000 -v "$CONTAINER:/var/lib/sqlite" "$IMAGE" \
+		sh -c 'printf "CREATE TABLE shared(id INTEGER PRIMARY KEY); INSERT INTO shared DEFAULT VALUES;\n" | { cat; sleep 60; } | sqlite3 jobs.sqlite' > /dev/null
+	for _ in $(seq 30); do
+		rows="$(sql jobs.sqlite 'SELECT count(*) FROM shared;' 2> /dev/null || true)"
+		[ "$rows" = 1 ] && break
+		sleep 1
+	done
+	[ "$rows" = 1 ] || die "a container running as uid 1000 could not write to jobs.sqlite: $(docker logs "$CONTAINER-user" 2>&1 | tail -n 1)"
+	[ "$(docker exec "$CONTAINER" stat -c '%a' jobs.sqlite-shm)" = 666 ] || die "jobs.sqlite-shm is not mode 666 while uid 1000 holds a connection"
+	[ "$(sql jobs.sqlite 'INSERT INTO shared DEFAULT VALUES; SELECT count(*) FROM shared;')" = 2 ] || die "the image user cannot write jobs.sqlite while uid 1000 holds a connection"
+	docker rm -f "$CONTAINER-user" > /dev/null
+	ok "a container running as uid 1000 writes jobs.sqlite, the image user writes it too while that connection is open"
 }
 
 check_creation_settings() {
@@ -191,7 +208,7 @@ sql() {
 }
 
 cleanup() {
-	docker rm -f "$CONTAINER" "$CONTAINER-default" "$CONTAINER-settings" > /dev/null 2>&1 || true
+	docker rm -f "$CONTAINER" "$CONTAINER-default" "$CONTAINER-settings" "$CONTAINER-user" > /dev/null 2>&1 || true
 	docker volume rm -f "$CONTAINER" > /dev/null 2>&1 || true
 	rm -rf "$WORK_DIR"
 }

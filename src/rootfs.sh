@@ -36,7 +36,7 @@ create_user() {
 }
 
 create_directories() {
-	install -d -m 0700 -o 65532 -g 65532 /rootfs/var/lib/sqlite
+	install -d -m 0777 -o 65532 -g 65532 /rootfs/var/lib/sqlite
 	install -d -m 1777 /rootfs/tmp
 }
 
