@@ -14,7 +14,8 @@ ARG TINI_VERSION=0.19.0-r3
 ARG BUSYBOX_VERSION=1.37.0-r31
 
 # ARGs set by the release workflow
-ARG BUILD_DATE
+ARG SOURCE_DATE_EPOCH
+ARG CREATED
 ARG GIT_SHA
 
 FROM ${BASE_IMAGE} AS build
@@ -80,7 +81,7 @@ ARG SQLITE_VERSION
 ARG IMAGE_VERSION
 ARG TINI_VERSION
 ARG BUSYBOX_VERSION
-ARG BUILD_DATE
+ARG CREATED
 ARG GIT_SHA
 
 COPY --from=build /rootfs/ /
@@ -88,7 +89,7 @@ COPY --from=build /rootfs/ /
 LABEL org.opencontainers.image.title="SQLite" \
     org.opencontainers.image.description="Minimal, production-ready, hardened and secure SQLite Docker image." \
     org.opencontainers.image.version="${SQLITE_VERSION}-v${IMAGE_VERSION}" \
-    org.opencontainers.image.created="${BUILD_DATE}" \
+    org.opencontainers.image.created="${CREATED}" \
     org.opencontainers.image.revision="${GIT_SHA}" \
     org.opencontainers.image.licenses="blessing AND MIT AND GPL-2.0-only AND AGPL-3.0-or-later" \
     org.opencontainers.image.authors="peakimages" \
