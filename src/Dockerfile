@@ -74,7 +74,7 @@ COPY rootfs.sh /src/
 RUN sh /src/rootfs.sh
 
 
-FROM scratch
+FROM scratch AS final
 
 ARG SQLITE_VERSION
 ARG IMAGE_VERSION
