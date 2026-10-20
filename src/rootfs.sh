@@ -31,12 +31,12 @@ install_binaries() {
 
 create_user() {
 	install -d /rootfs/etc
-	echo "nonroot:x:$SQLITE_UID:$SQLITE_GID::/var/lib/sqlite:/sbin/nologin" > /rootfs/etc/passwd
-	echo "nonroot:x:$SQLITE_GID:" > /rootfs/etc/group
+	echo "nonroot:x:65532:65532::/var/lib/sqlite:/sbin/nologin" > /rootfs/etc/passwd
+	echo "nonroot:x:65532:" > /rootfs/etc/group
 }
 
 create_directories() {
-	install -d -m 0700 -o "$SQLITE_UID" -g "$SQLITE_GID" /rootfs/var/lib/sqlite
+	install -d -m 0700 -o 65532 -g 65532 /rootfs/var/lib/sqlite
 	install -d -m 1777 /rootfs/tmp
 }
 

@@ -13,10 +13,6 @@ ARG TINI_VERSION=0.19.0-r3
 # https://pkgs.alpinelinux.org/package/v3.24/main/x86_64/busybox-static
 ARG BUSYBOX_VERSION=1.37.0-r31
 
-# Runtime user, nonroot 65532 like in distroless images
-ARG SQLITE_UID=65532
-ARG SQLITE_GID=65532
-
 # ARGs set by the release workflow
 ARG BUILD_DATE
 ARG GIT_SHA
@@ -26,8 +22,6 @@ FROM ${BASE_IMAGE} AS build
 ARG SQLITE_VERSION
 ARG TINI_VERSION
 ARG BUSYBOX_VERSION
-ARG SQLITE_UID
-ARG SQLITE_GID
 
 # curl, jq and openssl are only used during the build stage, so they are not pinned to a specific version
 # hadolint ignore=DL3018
@@ -86,8 +80,6 @@ ARG SQLITE_VERSION
 ARG IMAGE_VERSION
 ARG TINI_VERSION
 ARG BUSYBOX_VERSION
-ARG SQLITE_UID
-ARG SQLITE_GID
 ARG BUILD_DATE
 ARG GIT_SHA
 
@@ -118,7 +110,7 @@ ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     SQLITE_PAGE_SIZE=4096
 
 WORKDIR /var/lib/sqlite
-USER ${SQLITE_UID}:${SQLITE_GID}
+USER 65532:65532
 
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
