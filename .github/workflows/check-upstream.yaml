@@ -21,7 +21,7 @@ jobs:
   check:
     name: Check for a new SQLite release
     permissions:
-      actions: write # run the tests on the branch of the pull request
+      actions: write # start the build workflow on the branch of the pull request
       contents: write # push the branch of the pull request
       pull-requests: write # open the pull request
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
@@ -65,7 +65,7 @@ jobs:
           git commit --all --quiet --message "$title"
           git push --quiet --set-upstream origin "$branch"
           new_pr="$(gh pr create --base main --head "$branch" --title "$title" --label bot/upstream --body-file "$RUNNER_TEMP/body.md")"
-          gh workflow run tests.yaml --ref "$branch"
+          gh workflow run build.yaml --ref "$branch"
           for open_pr in $(gh pr list --label bot/upstream --json url --jq '.[].url'); do
             [ "$open_pr" = "$new_pr" ] || gh pr close "$open_pr" --delete-branch --comment "Superseded by $new_pr"
           done

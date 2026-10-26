@@ -2,8 +2,6 @@
 
 # Set by scripts/check-upstream.sh
 ARG SQLITE_VERSION=3.54.1
-# Set by scripts/release.sh
-ARG IMAGE_VERSION=0.1.0
 
 # Build dependencies
 # https://hub.docker.com/_/alpine/tags?name=3.24.3
@@ -13,7 +11,8 @@ ARG TINI_VERSION=0.19.0-r3
 # https://pkgs.alpinelinux.org/package/v3.24/main/x86_64/busybox-static
 ARG BUSYBOX_VERSION=1.37.0-r31
 
-# ARGs set by the release workflow
+# Set by the build workflow
+ARG IMAGE_VERSION
 ARG SOURCE_DATE_EPOCH
 ARG CREATED
 ARG GIT_SHA
