@@ -8,8 +8,8 @@ HADOLINT=hadolint/hadolint:v2.15.1
 SHELLCHECK=koalaman/shellcheck:v0.11.0
 # https://github.com/mvdan/sh/releases/tag/v3.14.1
 SHFMT=mvdan/shfmt:v3.14.1
-# https://github.com/jdx/jactionlint/releases/tag/v2.2.0
-JACTIONLINT=ghcr.io/jdx/jactionlint:2.2.0
+# https://github.com/jdx/jactionlint/releases/tag/v2.3.0
+JACTIONLINT=ghcr.io/jdx/jactionlint:2.3.0
 # https://github.com/editorconfig-checker/editorconfig-checker/releases/tag/v4.0.2
 EDITORCONFIG_CHECKER=mstruebing/editorconfig-checker:4.0.2
 
