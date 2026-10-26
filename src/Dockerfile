@@ -20,6 +20,7 @@ ARG GIT_SHA
 FROM ${BASE_IMAGE} AS build
 
 ARG SQLITE_VERSION
+ARG IMAGE_VERSION
 ARG TINI_VERSION
 ARG BUSYBOX_VERSION
 
@@ -80,6 +81,12 @@ COPY rootfs/ /rootfs/
 COPY rootfs.sh /src/
 RUN sh /src/rootfs.sh
 
+# A scratch image has no package database for the SBOM scanner to read, this syft JSON document takes its place
+COPY sbom.sh /src/
+RUN sh /src/sbom.sh "peakimages/sqlite:${SQLITE_VERSION}-v${IMAGE_VERSION:?}" \
+        "generic|sqlite|${SQLITE_VERSION}|blessing|$(jq -r .url /src/sqlite.json)|sqlite:sqlite" \
+        "apk|tini-static|tini_project:tini|/sbin/tini" \
+        "apk|busybox-static|busybox:busybox|/bin/busybox"
 
 FROM scratch AS final
 
