@@ -2,7 +2,7 @@ name: Check upstream
 
 on:
   schedule:
-    - cron: "30 6,18 * * *"
+    - cron: "20 7,18 * * *"
   workflow_dispatch:
 
 permissions: {}
@@ -18,42 +18,73 @@ defaults:
     shell: bash
 
 jobs:
+  lines:
+    name: List the lines of every branch
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
+    timeout-minutes: 10
+    outputs:
+      lines: ${{ steps.lines.outputs.lines }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # https://github.com/actions/checkout/releases/tag/v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: lines
+        run: |
+          for branch in $(git branch --remotes --format='%(refname:lstrip=3)' | grep -xE 'main|v[0-9]+\.x|release/v[0-9]+\.0'); do
+            git show "origin/$branch:src/upstream.json" | jq -c --arg branch "$branch" '.sqlite | keys[] | {$branch, line: .}'
+          done | jq -sc '"lines=\(.)"' -r >> "$GITHUB_OUTPUT"
+
   check:
-    name: Check for a new SQLite release
+    name: Check SQLite ${{ matrix.line }} on ${{ matrix.branch }}
+    needs: lines
     permissions:
       actions: write # start the build workflow on the branch of the pull request
       contents: write # push the branch of the pull request
       pull-requests: write # open the pull request
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.lines.outputs.lines) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # https://github.com/actions/checkout/releases/tag/v7.0.1
         with:
+          ref: ${{ matrix.branch }}
           persist-credentials: false
 
-      - run: scripts/check-upstream.sh
+      - env:
+          LINE: ${{ matrix.line }}
+        run: scripts/check-upstream.sh "$LINE"
 
       - name: Open a pull request
         env:
           GH_TOKEN: ${{ github.token }}
+          BASE: ${{ matrix.branch }}
+          LINE: ${{ matrix.line }}
         run: |
           git diff --quiet && exit 0
-          current_version="$(git show HEAD:src/upstream.json | jq -r .sqlite.latest.version)"
-          new_version="$(jq -r .sqlite.latest.version src/upstream.json)"
-          source_id="$(jq -r .sqlite.latest.source_id src/upstream.json)"
-          check_in="${source_id##* }"
-          branch="feat/sqlite-v$new_version"
-          title="feat(release): bump SQLite version from v$current_version to v$new_version"
+          pin() { jq -r --arg line "$LINE" ".sqlite[\$line].$1"; }
+          current="$(git show HEAD:src/upstream.json | pin version)"
+          version="$(pin version < src/upstream.json)"
+          source_id="$(pin source_id < src/upstream.json)"
+          branch="feat/sqlite-v$version"
+          [ "$BASE" = main ] || branch="$branch-${BASE//\//-}"
+          title="feat(release): bump SQLite version from v$current to v$version"
           if [ -n "$(gh pr list --head "$branch" --json number --jq '.[0].number')" ]; then
             echo "a pull request from $branch is open already"
             exit 0
           fi
           cat > "$RUNNER_TEMP/body.md" <<BODY
-          Updates SQLite to $new_version, the latest release on sqlite.org, see its [release notes](https://sqlite.org/releaselog/${new_version//./_}.html) and its [release check-in](https://sqlite.org/src/info/$check_in).
+          Updates SQLite to $version, see its [release notes](https://sqlite.org/releaselog/${version//./_}.html) and its [release check-in](https://sqlite.org/src/info/${source_id##* }).
 
           ## Changes
 
-          - Bump SQLite version from v$current_version to v$new_version
+          - Bump SQLite version from v$current to v$version
 
           > [!IMPORTANT]
           > Squash merge this PR to keep the commit history clean.
@@ -64,8 +95,8 @@ jobs:
           git switch --create "$branch"
           git commit --all --quiet --message "$title"
           git push --quiet --set-upstream origin "$branch"
-          new_pr="$(gh pr create --base main --head "$branch" --title "$title" --label bot/upstream --body-file "$RUNNER_TEMP/body.md")"
+          new_pr="$(gh pr create --base "$BASE" --head "$branch" --title "$title" --label bot/upstream --body-file "$RUNNER_TEMP/body.md")"
           gh workflow run build.yaml --ref "$branch"
-          for open_pr in $(gh pr list --label bot/upstream --json url --jq '.[].url'); do
+          for open_pr in $(gh pr list --label bot/upstream --base "$BASE" --json url,title | jq -r --arg from "from v$current to" '.[] | select(.title | contains($from)) | .url'); do
             [ "$open_pr" = "$new_pr" ] || gh pr close "$open_pr" --delete-branch --comment "Superseded by $new_pr"
           done
