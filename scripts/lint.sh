@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+OPTION="$*"
 HADOLINT=hadolint/hadolint:v2.15.1
 SHELLCHECK=koalaman/shellcheck:v0.11.0
 SHFMT=mvdan/shfmt:v3.14.1
@@ -22,13 +23,10 @@ cd "$(dirname "$0")/.."
 failed=0
 
 main() {
+	[[ "$OPTION" =~ ^(--fix)?$ ]] || die "'$OPTION' is not an option, expected --fix or none"
 	command -v docker > /dev/null || die "docker is not installed"
 	docker info > /dev/null 2>&1 || die "docker is not running"
-	case "${1:-}" in
-		"") ;;
-		--fix) format ;;
-		*) die "usage: scripts/lint.sh [--fix]" ;;
-	esac
+	[ "$OPTION" != --fix ] || format
 	heading "Linting"
 	check src/Dockerfile hadolint "$HADOLINT" hadolint src/Dockerfile
 	check "the shell scripts" ShellCheck "$SHELLCHECK" scripts/*.sh src/*.sh src/rootfs/usr/local/bin/*.sh
@@ -65,4 +63,4 @@ tool() {
 	docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/mnt" -w /mnt "$@"
 }
 
-main "$@"
+main

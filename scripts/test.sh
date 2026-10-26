@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="${1:?usage: scripts/test.sh IMAGE}"
+OPTION="$*"
+IMAGE="${1:-}"
 CONTAINER=sqlite-test
 WORK_DIR="$(mktemp -d)"
 
@@ -18,6 +19,7 @@ cd "$(dirname "$0")/.."
 trap cleanup EXIT
 
 main() {
+	[[ "$OPTION" =~ ^[^-][^[:space:]]*$ ]] || die "'$OPTION' is not an option, expected an image"
 	heading "Testing $IMAGE"
 	check_version
 	check_default_database
