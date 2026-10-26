@@ -36,6 +36,9 @@ To see a comparison of this image with other popular SQLite Docker images, see [
 
 SQLite is not a server and the database is just a file. The application reads and writes it with the SQLite engine it bundles, such as `pdo_sqlite` for PHP or `rusqlite` for Rust, so the SQLite version and extensions of that engine apply, not the ones of this image. This container shares the volume with the application and looks after the files: it creates and configures them, health checks them and brings the `sqlite3` shell for backups, restores and maintenance.
 
+> [!NOTE]
+> The layers of the image are compressed with zstd, pulling it needs Docker Engine 23.0 or later.
+
 ### Docker
 
 Start the container with a named volume for the default database:

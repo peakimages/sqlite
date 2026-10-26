@@ -100,7 +100,7 @@ jobs:
           context: src
           platforms: ${{ matrix.platform }}
           tags: peakimages/sqlite:test
-          outputs: type=oci,dest=${{ runner.temp }}/image,tar=false,rewrite-timestamp=true
+          outputs: type=oci,dest=${{ runner.temp }}/image,tar=false,rewrite-timestamp=true,compression=zstd,compression-level=11,force-compression=true
           build-args: |
             SQLITE_VERSION=${{ matrix.line.version }}
             IMAGE_VERSION=${{ needs.versions.outputs.image }}
