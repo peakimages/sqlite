@@ -19,3 +19,6 @@ indent_style = space
 [*.{yml,yaml,md}]
 indent_style = space
 indent_size = 2
+
+[*.md]
+indent_size = unset
