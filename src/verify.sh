@@ -9,15 +9,10 @@ die() {
 cd "$(dirname "$0")"
 
 main() {
-	check_version
 	check_download
 	unpack
 	check_header
 	echo "verify: SQLite $SQLITE_VERSION, $(pin size) bytes, SHA3-256 and source id match"
-}
-
-check_version() {
-	[ "$(pin version)" = "$SQLITE_VERSION" ] || die "upstream.json pins $(pin version), the Dockerfile says $SQLITE_VERSION"
 }
 
 check_download() {
@@ -37,7 +32,7 @@ check_header() {
 }
 
 pin() {
-	jq -r ".sqlite.latest.$1" upstream.json
+	jq -r ".$1" sqlite.json
 }
 
 main

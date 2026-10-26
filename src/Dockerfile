@@ -30,7 +30,8 @@ RUN apk add --no-cache build-base curl jq openssl tini-static=${TINI_VERSION} bu
 
 WORKDIR /src
 COPY upstream.json verify.sh ./
-RUN curl --proto '=https' --tlsv1.2 -sSf --retry 3 -o sqlite.zip "$(jq -r .sqlite.latest.url upstream.json)" \
+RUN jq --arg version "$SQLITE_VERSION" '.sqlite[] | select(.version == $version)' upstream.json > sqlite.json \
+    && curl --proto '=https' --tlsv1.2 -sSf --retry 3 -o sqlite.zip "$(jq -r .url sqlite.json)" \
     && sh verify.sh
 
 # Compile SQLite and the sqlite3 shell into one static binary using recommended compile time options:
