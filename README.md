@@ -25,8 +25,8 @@ SQLite has no server and the database is just a file. Application images rarely 
 - ✅ Batteries Included: `FTS3`, `FTS4`, `FTS5`, `R*Tree`, `Geopoly`, `math`, `dbstat`, `dbpage`, `stmt` and `soundex` SQLite extensions
 - ✅ Modern Architecture: Native health checks, `tini` init, OCI labels, reproducible builds, provenance and SBOM attestations
 - ✅ Always Current: sqlite.org is checked twice a day and new SQLite releases become new images
-- ✅ Multi-Architecture: Builds for `linux/amd64`, `linux/arm64`, `linux/arm/v7` and `linux/riscv64`
-- ✅ Tested: Every release is tested on all four platforms before it is published
+- ✅ Multi-Architecture: Builds for `linux/amd64`, `linux/arm64`, `linux/arm/v7`, `linux/arm/v6`, `linux/riscv64`, `linux/ppc64le`, `linux/s390x` and `linux/386`
+- ✅ Tested: Every release is tested on all eight platforms before it is published
 
 ## Comparison
 

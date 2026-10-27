@@ -57,7 +57,7 @@ jobs:
     strategy:
       matrix:
         line: ${{ fromJSON(needs.versions.outputs.lines) }}
-        platform: [linux/amd64, linux/arm64, linux/arm/v7, linux/riscv64]
+        platform: [linux/amd64, linux/arm64, linux/arm/v7, linux/arm/v6, linux/riscv64, linux/ppc64le, linux/s390x, linux/386]
         include:
           - platform: linux/amd64
             arch: amd64
@@ -69,10 +69,25 @@ jobs:
             arch: armv7
             runner: ubuntu-26.04-arm
             qemu: true
+          - platform: linux/arm/v6
+            arch: armv6
+            runner: ubuntu-26.04-arm
+            qemu: true
           - platform: linux/riscv64
             arch: riscv64
             runner: ubuntu-26.04
             qemu: true
+          - platform: linux/ppc64le
+            arch: ppc64le
+            runner: ubuntu-26.04
+            qemu: true
+          - platform: linux/s390x
+            arch: s390x
+            runner: ubuntu-26.04
+            qemu: true
+          - platform: linux/386
+            arch: "386"
+            runner: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # https://github.com/actions/checkout/releases/tag/v7.0.1
         with:
