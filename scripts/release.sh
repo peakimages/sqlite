@@ -119,6 +119,8 @@ select_version() {
 				selected=0
 			fi
 		fi
+	elif [ "$stable" = 0.0.0 ]; then
+		bases=("$(next_version "$stable" minor)" "$(next_version "$stable" major)")
 	else
 		bases=("$(next_version "$stable" patch)")
 		[[ "$branch" == v*.*.x ]] || bases+=("$(next_version "$stable" minor)")

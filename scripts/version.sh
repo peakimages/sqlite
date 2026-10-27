@@ -91,6 +91,8 @@ check_version() {
 	publish=false
 	if newer "$last" "$version"; then
 		info "$VERSION_FILE sets $version, $branch released $last already"
+	elif [ "$version" = 0.0.0 ]; then
+		info "$VERSION_FILE sets 0.0.0, $branch releases nothing before scripts/release.sh sets the first version"
 	elif [ "$channel" = preview ] && [[ ! "$version" =~ -[a-z]+\.[1-9] ]]; then
 		info "$VERSION_FILE sets $version, $branch publishes numbered prereleases only"
 	elif [ "$channel" = preview ] && [ -n "$earlier" ]; then
@@ -156,6 +158,7 @@ print_upcoming_versions() {
 			v*.*.x) upcoming="$(next_version "$base" patch)" ;;
 			*) upcoming="$(next_version "$base" patch) or $(next_version "$base" minor)" ;;
 		esac
+		[ "$base" != 0.0.0 ] || upcoming="$(next_version "$base" minor) or $(next_version "$base" major)"
 	elif [ -n "$line" ]; then
 		upcoming="a prerelease of $line.0"
 	else
