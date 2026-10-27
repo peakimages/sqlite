@@ -27,6 +27,7 @@ defaults:
 jobs:
   versions:
     name: Read the versions
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || !(github.head_ref == 'main' || github.head_ref == 'next' || startsWith(github.head_ref, 'release/') || endsWith(github.head_ref, '.x')) }}
     permissions:
       contents: read
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
