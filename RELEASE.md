@@ -134,7 +134,7 @@ The pull request workflow builds every pull request and publishes the image of t
 
 - Pull requests from forks and Dependabot are built, not published
 - Pull requests from `main`, `next`, a release branch or a patch branch are not built, the release workflow builds their commits
-- ghcr.io only, no git tag and no GitHub release
+- ghcr.io only, no git tag and no GitHub release, the clean manifests workflow keeps the image while the pull request is open
 
 ## Tags
 
