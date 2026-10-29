@@ -30,14 +30,16 @@ write_document() {
 		| def installed($key; $name): first($installed[] | select(.[$key] == $name)) // error("sbom: \($name) is not installed");
 		def purl($path; $version; $qualifiers): "pkg:\($path)@\($version)?" + ([$qualifiers | to_entries[] | select(.value | length > 0) | "\(.key)=\(.value | @uri)"] | join("&"));
 		def os_purl($type; $name; $version; $arch; $upstream): purl("\($type)/\($os.ID)/\($name)"; $version; { arch: $arch, distro: "\($os.ID)-\($os.VERSION_ID)", upstream: $upstream });
-		def package($type; $name; $version; $license; $cpe; $purl): {
-			name: $name,
-			version: $version,
-			type: $type,
-			licenses: [{ value: $license, spdxExpression: $license, type: "declared" }],
-			cpes: [{ cpe: "cpe:2.3:a:\($cpe):\($version | gsub("(?<c>[^A-Za-z0-9._-])"; "\\\(.c)")):*:*:*:*:*:*:*", source: "declared" }],
-			purl: $purl
-		};
+		def package($type; $name; $version; $license; $cpe; $purl):
+			($cpe | select(test("^[a-z0-9._-]+:[a-z0-9._-]+$")) // error("sbom: \($cpe) is not a CPE, expected VENDOR:PRODUCT")) as $cpe
+			| {
+				name: $name,
+				version: $version,
+				type: $type,
+				licenses: [{ value: $license, spdxExpression: $license, type: "declared" }],
+				cpes: [{ cpe: "cpe:2.3:a:\($cpe):\($version | gsub("(?<c>[^A-Za-z0-9._-])"; "\\\(.c)")):*:*:*:*:*:*:*", source: "declared" }],
+				purl: $purl
+			};
 		def apk($name; $cpe; $paths):
 			installed("P"; $name)
 			| package("apk"; .P; .V; .L; $cpe; os_purl("apk"; .P; .V; .A; if .o != .P then .o else "" end)) + {
