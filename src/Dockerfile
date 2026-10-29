@@ -29,7 +29,7 @@ ARG BUSYBOX_VERSION
 RUN apk add --no-cache build-base curl jq openssl tini-static=${TINI_VERSION} busybox-static=${BUSYBOX_VERSION}
 
 WORKDIR /src
-COPY upstream.json verify.sh ./
+COPY --chmod=0644 upstream.json verify.sh ./
 RUN jq --arg version "$SQLITE_VERSION" '.sqlite[] | select(.version == $version)' upstream.json > sqlite.json \
     && curl --proto '=https' --tlsv1.2 -sSf --retry 3 -o sqlite.zip "$(jq -r .url sqlite.json)" \
     && sh verify.sh
@@ -77,12 +77,12 @@ RUN gcc -static-pie -fPIE -Os \
     && strip --strip-all sqlite3
 
 # Assemble the root filesystem of the final image in /rootfs
-COPY rootfs/ /rootfs/
-COPY rootfs.sh /src/
+COPY --chmod=0755 rootfs/ /rootfs/
+COPY --chmod=0644 rootfs.sh /src/
 RUN sh /src/rootfs.sh
 
 # A scratch image has no package database for the SBOM scanner to read, this syft JSON document takes its place
-COPY sbom.sh /src/
+COPY --chmod=0644 sbom.sh /src/
 RUN sh /src/sbom.sh "peakimages/sqlite:${SQLITE_VERSION}-v${IMAGE_VERSION:?}" \
         "generic|sqlite|${SQLITE_VERSION}|blessing|$(jq -r .url /src/sqlite.json)|sqlite:sqlite" \
         "apk|tini-static|tini_project:tini|/sbin/tini" \

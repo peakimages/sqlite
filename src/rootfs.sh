@@ -26,7 +26,6 @@ install_binaries() {
 	install -D -m 0755 /src/sqlite/sqlite3 /rootfs/usr/local/bin/sqlite3
 	install -D -m 0755 /sbin/tini-static /rootfs/sbin/tini
 	install -D -m 0755 /bin/busybox.static /rootfs/bin/busybox
-	chmod 0755 /rootfs/usr/local/bin/*.sh
 }
 
 create_user() {
