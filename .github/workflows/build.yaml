@@ -1,7 +1,6 @@
 name: Build
 
 on:
-  pull_request:
   schedule:
     - cron: "50 7 * * 1"
   workflow_dispatch:
@@ -27,7 +26,6 @@ defaults:
 jobs:
   versions:
     name: Read the versions
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || !(github.head_ref == 'main' || github.head_ref == 'next' || startsWith(github.head_ref, 'release/') || endsWith(github.head_ref, '.x')) }}
     permissions:
       contents: read
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
@@ -43,6 +41,7 @@ jobs:
       - id: versions
         env:
           BRANCH: ${{ github.base_ref || github.ref_name }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
         run: |
           image="$(scripts/version.sh --build)"
           lines="$(jq -c '[.sqlite | to_entries[] | {name: .key, version: .value.version}]' src/upstream.json)"

@@ -128,6 +128,14 @@ Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v
 > [!IMPORTANT]
 > Cut `v1.x` from `main`, or bring an existing one up to date with `main`, before `release/v2.0` is merged into `main`. Afterwards `main` is v2 and v1 lives on `v1.x` alone.
 
+## Pull requests
+
+The pull request workflow builds every pull request and publishes the image of the line `latest` of one from a branch of this repository as `ghcr.io/peakimages/sqlite:pr-<number>`, versioned `<base>-pr.<number>`: pull request 1234 into `next` is `1.4.0-beta.1-pr.1234` after `1.4.0-beta.1` and `1.5.0-alpha.0-pr.1234` before the first alpha of 1.5.0, into `main` `1.3.4-pr.1234`. PHP's `version_compare` sorts it after its base and before the next prerelease or release.
+
+- Pull requests from forks and Dependabot are built, not published
+- Pull requests from `main`, `next`, a release branch or a patch branch are not built, the release workflow builds their commits
+- ghcr.io only, no git tag and no GitHub release
+
 ## Tags
 
 | Tag                             | Points at                                                                               |
@@ -136,3 +144,4 @@ Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v
 | `latest`, `3.54.1`, `3.54`, `3` | `3.54.1-v1.3.0`, the newest SQLite version of the newest stable image version           |
 | `3.53.4`, `3.53`                | the newest stable image version released with SQLite 3.53, also once the line stops     |
 | `preview`                       | the newest prerelease of the lowest version in prerelease above `latest`, else `latest` |
+| `pr-123`                        | the image of the newest push to an open pull request, on ghcr.io only                   |

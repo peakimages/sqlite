@@ -3,6 +3,7 @@ set -euo pipefail
 
 OPTION="$*"
 BRANCH="${BRANCH:-}"
+PULL_REQUEST="${PULL_REQUEST:-}"
 VERSION_FILE=release.json
 ARTIFACT=image
 UPSTREAM_FILE=src/upstream.json
@@ -23,6 +24,7 @@ cd "$(dirname "$0")/.."
 main() {
 	[[ "$OPTION" =~ ^(--build|--release|--tags)?$ ]] || die "'$OPTION' is not an option, expected --build, --release, --tags or none"
 	read_version
+	print_build_version
 	fetch_origin
 	print_tags
 	check_branch
@@ -39,10 +41,21 @@ read_version() {
 	[[ ! "$branch" =~ ^(next|release/v[0-9]+\.[0-9]+)$ ]] || channel=preview
 	version="$(artifact_version "$channel")"
 	[ -n "$version" ] || die "$VERSION_FILE has no $channel version of $ARTIFACT"
-	if [ "$OPTION" = --build ]; then
-		echo "$version"
-		exit 0
+}
+
+print_build_version() {
+	[ "$OPTION" = --build ] || return 0
+	if [ -n "$PULL_REQUEST" ] && [ "$channel" = preview ]; then
+		tags="$(git ls-remote --tags --refs origin | sed 's|.*refs/tags/||' | filter_release_tags | sort -V)" || die "could not list the tags of origin"
+		line="${branch#release/v}"
+		[ "$line" != "$branch" ] || line=""
+		revision=HEAD
+		select_newest_stable
+		select_preview_base
+		version="$base"
 	fi
+	echo "$version${PULL_REQUEST:+-pr.$PULL_REQUEST}"
+	exit 0
 }
 
 fetch_origin() {
@@ -174,8 +187,26 @@ print_releases() {
 	jq -sc . <<< "$releases"
 }
 
+select_newest_stable() {
+	stable="$(tag_versions <<< "$tags" | awk '!/-/' | newest)"
+	stable="${stable:-$(artifact_version stable)}"
+}
+
+select_preview_base() {
+	version="$(artifact_version preview <(git show "$revision:$VERSION_FILE"))"
+	if [ -n "$line" ]; then
+		base="$line.0-alpha.0"
+		[[ "$version" != "$line.0-"* ]] || base="$version"
+	elif newer "$version" "$stable"; then
+		base="$version"
+		[[ "$version" == *-* ]] || base="$version-alpha.0"
+	else
+		base="$(next_version "$stable" minor)-alpha.0"
+	fi
+}
+
 artifact_version() {
-	jq -r --arg channel "$1" --arg artifact "$ARTIFACT" '.[$channel][$artifact] // empty' "$VERSION_FILE"
+	jq -r --arg channel "$1" --arg artifact "$ARTIFACT" '.[$channel][$artifact] // empty' "${2:-$VERSION_FILE}"
 }
 
 upstream_lines() {
@@ -254,7 +285,11 @@ moving_tags() {
 }
 
 release_tags() {
-	git tag --list "$@" | grep -E "^v${UPSTREAM:+[^-]+-v}[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$" || true
+	git tag --list "$@" | filter_release_tags
+}
+
+filter_release_tags() {
+	grep -E "^v${UPSTREAM:+[^-]+-v}[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$" || true
 }
 
 tag_versions() {
