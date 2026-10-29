@@ -103,7 +103,7 @@ jobs:
             sources+=("oci-layout://${index%/index.json}@$(jq -r '.manifests[0].digest' "$index")")
           done
           for repository in ghcr.io/peakimages/sqlite docker.io/peakimages/sqlite; do
-            docker buildx imagetools create --tag "$repository:$TAG" "${sources[@]}"
+            docker buildx imagetools create --tag "$repository:${TAG#v}" "${sources[@]}"
           done
 
       - name: Create the GitHub release
@@ -121,7 +121,7 @@ jobs:
             awk -v heading="$heading" 'index($0, heading) == 1 { inside = 1; next } /^## / { inside = 0 } inside { sub(/^### /, "## "); print }' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
           else
             cat > "$RUNNER_TEMP/notes.md" <<NOTES
-          Updates SQLite to $SQLITE_VERSION, see its [release notes](https://sqlite.org/releaselog/${SQLITE_VERSION//./_}.html).
+          Updates SQLite to v$SQLITE_VERSION, see its [release notes](https://sqlite.org/releaselog/${SQLITE_VERSION//./_}.html).
 
           ## Changed
 
@@ -165,7 +165,7 @@ jobs:
           tags="$(scripts/version.sh --tags)"
           jq -r 'to_entries[] | "\(.key) \(.value)"' <<< "$tags" | while read -r tag release; do
             for repository in ghcr.io/peakimages/sqlite docker.io/peakimages/sqlite; do
-              docker buildx imagetools create --tag "$repository:$tag" "$repository:$release"
+              docker buildx imagetools create --tag "$repository:${tag#v}" "$repository:${release#v}"
             done
           done
           latest="$(jq -r '.latest // empty' <<< "$tags")"

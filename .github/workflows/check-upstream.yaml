@@ -80,7 +80,7 @@ jobs:
             exit 0
           fi
           cat > "$RUNNER_TEMP/body.md" <<BODY
-          Updates SQLite to $version, see its [release notes](https://sqlite.org/releaselog/${version//./_}.html) and its [release check-in](https://sqlite.org/src/info/${source_id##* }).
+          Updates SQLite to v$version, see its [release notes](https://sqlite.org/releaselog/${version//./_}.html) and its [release check-in](https://sqlite.org/src/info/${source_id##* }).
 
           ## Changes
 

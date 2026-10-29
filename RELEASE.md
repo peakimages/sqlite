@@ -1,6 +1,6 @@
 # Releases
 
-Every release is tagged `<sqlite version>-v<image version>`, such as `3.54.1-v1.4.0-beta.1`.
+Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v1.4.0-beta.1`.
 
 > [!IMPORTANT]
 > A push that changes `release.json` or `src/upstream.json` publishes every release of it whose tag does not exist yet. Check what a push publishes with `scripts/version.sh` first.
@@ -64,7 +64,7 @@ Every release is tagged `<sqlite version>-v<image version>`, such as `3.54.1-v1.
 1. Cut the patch branch from the newest tag of the minor, unless it exists:
 
    ```sh
-   git switch -c v1.2.x 3.54.1-v1.2.1 && git push -u origin v1.2.x
+   git switch -c v1.2.x v3.54.1-v1.2.1 && git push -u origin v1.2.x
    ```
 
 2. Put the fix on a branch named after the version that releases it, cherry-picked from `main` when it is there already:
@@ -93,7 +93,7 @@ Every release is tagged `<sqlite version>-v<image version>`, such as `3.54.1-v1.
    git switch -c feat/sqlite-3.53 origin/main && scripts/check-upstream.sh 3.53
    ```
 
-2. Squash merge a pull request as `feat(release): add the SQLite 3.53 line`, the push publishes `3.53.4-v1.3.0`
+2. Squash merge a pull request as `feat(release): add the SQLite 3.53 line`, the push publishes `v3.53.4-v1.3.0`
 3. To stop the line, remove `3.53` from `src/upstream.json`, its tags stay where they are
 
 ## Release a major version
