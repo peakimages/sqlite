@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-10-30
+
 ### Breaking Changes
 
 - Compress the layers with zstd instead of gzip, zstd is faster, more modern and compresses better than gzip, pulling needs Docker Engine 23.0 or later
