@@ -88,6 +88,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Describe the image in `README.md` as a central home for SQLite databases, explain that the application keeps its own SQLite engine, add copying the static `sqlite3` shell into other images and drop the uid `65532` note
 - Add reproducible builds, PIE, detached runs and SQLite updates to `docs/comparison.md` and explain the UPX packing of `grepular/sqlite3`
 - Put the scope first in `SECURITY.md`
+- Add a Why section to the pull request template
 
 ## [v0.1.0] - 2026-09-23
 
