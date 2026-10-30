@@ -46,7 +46,7 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
         run: |
-          releases="$(scripts/version.sh --release)"
+          releases="$(scripts/plan-version.sh --release)"
           echo "releases=$releases" | tee -a "$GITHUB_OUTPUT"
 
   build:
@@ -165,7 +165,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tags="$(scripts/version.sh --tags)"
+          tags="$(scripts/plan-version.sh --tags)"
           jq -r 'to_entries[] | "\(.key) \(.value)"' <<< "$tags" | while read -r tag release; do
             for repository in ghcr.io/peakimages/sqlite docker.io/peakimages/sqlite; do
               docker buildx imagetools create --tag "$repository:${tag#v}" "$repository:${release#v}"

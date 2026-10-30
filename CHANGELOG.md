@@ -46,7 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - Release from `main`, `next`, release branches such as `release/v0.3` and maintenance branches such as `v1.x` and `v0.1.x`
   - Select the stage and the version with `scripts/release.sh`, which offers the versions the branch allows and preselects the bump the commits need
   - Publish nothing while `release.json` sets `0.0.0`, the version a new repository starts with, `scripts/release.sh` offers `0.1.0` or `1.0.0` as its first release
-  - Decide the image version, the releases and the moving tags with `scripts/version.sh`, which also reports what a push publishes
+  - Plan the image version, the releases and the moving tags with `scripts/plan-version.sh`, which also reports what a push publishes
   - Publish every release a push of `release.json` or `src/upstream.json` names and whose tag does not exist yet, never as a draft
   - Move `latest`, `preview` and every prefix of a SQLite version to their place among all published tags, so a release of an older line never moves a tag back
   - Check every SQLite line of `main`, the maintenance branches and the major release branches twice a day and open one pull request per bump, which supersedes the older ones

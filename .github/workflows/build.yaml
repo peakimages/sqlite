@@ -43,7 +43,7 @@ jobs:
           BRANCH: ${{ github.base_ref || github.ref_name }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
         run: |
-          image="$(scripts/version.sh --build)"
+          image="$(scripts/plan-version.sh --build)"
           lines="$(jq -c '[.sqlite | to_entries[] | {name: .key, version: .value.version}]' src/upstream.json)"
           printf 'image=%s\nlines=%s\n' "$image" "$lines" >> "$GITHUB_OUTPUT"
 

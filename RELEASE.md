@@ -3,7 +3,7 @@
 Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v1.4.0-beta.1`.
 
 > [!IMPORTANT]
-> A push that changes `release.json` or `src/upstream.json` publishes every release of it whose tag does not exist yet. Check what a push publishes with `scripts/version.sh` first.
+> A push that changes `release.json` or `src/upstream.json` publishes every release of it whose tag does not exist yet. Check what a push publishes with `scripts/plan-version.sh` first.
 
 ## Rules
 
@@ -39,7 +39,7 @@ Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v
 2. Check what the branch releases:
 
    ```sh
-   scripts/version.sh
+   scripts/plan-version.sh
    ```
 
 3. Select the stage and the version, the script commits them and asks to push:

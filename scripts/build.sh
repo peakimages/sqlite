@@ -23,7 +23,7 @@ main() {
 build() {
 	local image_version
 	[ -z "${CI:-}" ] || die "scripts/build.sh is for local builds, CI builds with docker/build-push-action"
-	image_version="$(scripts/version.sh --build)"
+	image_version="$(scripts/plan-version.sh --build)"
 	docker buildx build ${PLATFORM:+--platform "$PLATFORM"} --build-arg IMAGE_VERSION="$image_version" \
 		--provenance mode=max --sbom true --load --tag "$IMAGE" src
 	ok "$IMAGE is built for ${PLATFORM:-the platform of the Docker host} with image version $BOLD$image_version$RESET"
