@@ -150,6 +150,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Plan the moving tags
+        id: plan
+        run: |
+          tags="$(scripts/plan-version.sh --tags)"
+          echo "tags=$tags" | tee -a "$GITHUB_OUTPUT"
+
       - uses: docker/login-action@v4.7.0
         with:
           registry: ghcr.io
@@ -161,18 +167,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Move the tags the releases take over
+      - name: Move the tags on ghcr.io and docker.io
         env:
-          GH_TOKEN: ${{ github.token }}
+          TAGS: ${{ steps.plan.outputs.tags }}
         run: |
-          tags="$(scripts/plan-version.sh --tags)"
-          jq -r 'to_entries[] | "\(.key) \(.value)"' <<< "$tags" | while read -r tag release; do
+          jq -r 'to_entries[] | "\(.key) \(.value)"' <<< "$TAGS" | while read -r tag release; do
             for repository in ghcr.io/peakimages/sqlite docker.io/peakimages/sqlite; do
               docker buildx imagetools create --tag "$repository:${tag#v}" "$repository:${release#v}"
             done
           done
-          latest="$(jq -r '.latest // empty' <<< "$tags")"
-          [ -z "$latest" ] || gh release edit "$latest" --latest
+
+      - name: Mark the latest GitHub release
+        if: ${{ fromJSON(steps.plan.outputs.tags).latest }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ fromJSON(steps.plan.outputs.tags).latest }}
+        run: gh release edit "$LATEST" --latest
 
   merge:
     name: Merge forward
