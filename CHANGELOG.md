@@ -51,7 +51,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - Move `latest`, `preview` and every prefix of a SQLite version to their place among all published tags, so a release of an older line never moves a tag back
   - Check every SQLite line of `main`, the maintenance branches and the major release branches twice a day and open one pull request per bump, which supersedes the older ones
   - Verify a new SQLite release against its release notes and its tagged check-in on sqlite.org
-  - Merge `main` forward into `next` and the release branches twice a day and after every release
+  - Merge `main` forward into `next` and the release branches after every release
   - Tag releases in git and on GitHub with a leading `v`, `v3.54.1-v0.2.0`, the image tags stay `3.54.1-v0.2.0`, and rename the tags and releases of the earlier versions to match
 - Rework the CI workflows for the new release process
   - Split the build, test and release workflows, the release workflow calls the build workflow and the build workflow calls the tests
