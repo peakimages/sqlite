@@ -133,7 +133,7 @@ Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v
 The pull request workflow builds every pull request and publishes the image of the line `latest` of one from a branch of this repository as `ghcr.io/peakimages/sqlite:pr-<number>`, versioned `<base>-pr.<number>`: pull request 1234 into `next` is `1.4.0-beta.1-pr.1234` after `1.4.0-beta.1` and `1.5.0-alpha.0-pr.1234` before the first alpha of 1.5.0, into `main` `1.3.4-pr.1234`. PHP's `version_compare` sorts it after its base and before the next prerelease or release.
 
 - Pull requests from forks and Dependabot are built, not published
-- Pull requests from `main`, `next`, a release branch or a patch branch are not built, the release workflow builds their commits
+- A push to a pull request from `main`, `next`, a release branch or a patch branch that changes `release.json` or `src/upstream.json` is not built, the release workflow builds it
 - ghcr.io only, no git tag and no GitHub release, the clean manifests workflow keeps the image while the pull request is open
 
 ## Tags
