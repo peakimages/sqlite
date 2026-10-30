@@ -24,21 +24,23 @@ defaults:
     shell: bash
 
 jobs:
-  versions:
-    name: Read the versions
+  plan:
+    name: Plan build
     permissions:
       contents: read
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
     timeout-minutes: 10
     outputs:
-      image: ${{ steps.versions.outputs.image }}
-      lines: ${{ inputs.lines || steps.versions.outputs.lines }}
+      image: ${{ steps.plan.outputs.image }}
+      lines: ${{ inputs.lines || steps.plan.outputs.lines }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
-      - id: versions
+      - name: Plan the image version of each SQLite line
+        id: plan
         env:
           BRANCH: ${{ github.base_ref || github.ref_name }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
@@ -48,15 +50,15 @@ jobs:
           printf 'image=%s\nlines=%s\n' "$image" "$lines" >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build ${{ matrix.line.name }} ${{ matrix.platform }}
-    needs: versions
+    name: Build image (${{ matrix.line.name }}, ${{ matrix.platform }})
+    needs: plan
     permissions:
       contents: read
     runs-on: ${{ matrix.runner }} # https://github.com/actions/runner-images
     timeout-minutes: 60
     strategy:
       matrix:
-        line: ${{ fromJSON(needs.versions.outputs.lines) }}
+        line: ${{ fromJSON(needs.plan.outputs.lines) }}
         platform: [linux/amd64, linux/arm64, linux/arm/v7, linux/arm/v6, linux/riscv64, linux/ppc64le, linux/s390x, linux/386]
         include:
           - platform: linux/amd64
@@ -89,11 +91,12 @@ jobs:
             arch: "386"
             runner: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
-      - name: Set the build arguments
+      - name: Read the commit date
         id: args
         run: |
           {
@@ -101,17 +104,20 @@ jobs:
             echo "created=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-qemu-action@v4.4.0
+      - name: Set up QEMU
         if: ${{ matrix.qemu }}
+        uses: docker/setup-qemu-action@v4.4.0
         with:
           image: docker.io/tonistiigi/binfmt:qemu-v10.2.3-68@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0 # https://github.com/tonistiigi/binfmt/releases/tag/deploy/v10.2.3-68
           cache-image: false
 
-      - uses: docker/setup-buildx-action@v4.4.1
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4.4.1
         with:
           cache-binary: false
 
-      - uses: docker/build-push-action@v7.4.0
+      - name: Build the image
+        uses: docker/build-push-action@v7.4.0
         with:
           context: src
           platforms: ${{ matrix.platform }}
@@ -119,14 +125,15 @@ jobs:
           outputs: type=oci,dest=${{ runner.temp }}/image,tar=false,rewrite-timestamp=true,compression=zstd,compression-level=11,force-compression=true
           build-args: |
             SQLITE_VERSION=${{ matrix.line.version }}
-            IMAGE_VERSION=${{ needs.versions.outputs.image }}
+            IMAGE_VERSION=${{ needs.plan.outputs.image }}
             SOURCE_DATE_EPOCH=${{ steps.args.outputs.epoch }}
             CREATED=${{ steps.args.outputs.created }}
             GIT_SHA=${{ github.sha }}
           provenance: mode=max
           sbom: true
 
-      - uses: actions/upload-artifact@v7.0.2
+      - name: Upload the image
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: image-${{ matrix.line.name }}-${{ matrix.arch }}
           path: ${{ runner.temp }}/image
@@ -135,9 +142,9 @@ jobs:
 
   tests:
     name: Tests
-    needs: [versions, build]
+    needs: [plan, build]
     permissions:
       contents: read
     uses: $/.github/workflows/tests.yaml
     with:
-      lines: ${{ needs.versions.outputs.lines }}
+      lines: ${{ needs.plan.outputs.lines }}

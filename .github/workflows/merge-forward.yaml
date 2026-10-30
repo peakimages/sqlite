@@ -27,12 +27,13 @@ jobs:
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Merge main into the release branches and next, the release branches into next
+      - name: Merge main into the release branches and next, and each release branch into next
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

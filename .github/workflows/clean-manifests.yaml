@@ -19,7 +19,7 @@ defaults:
 
 jobs:
   clean:
-    name: Delete unused manifests
+    name: Clean manifests
     if: ${{ github.repository == 'peakimages/sqlite' }}
     permissions:
       contents: read
@@ -29,7 +29,8 @@ jobs:
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
@@ -40,8 +41,9 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_CLEANUP_TOKEN }}
         run: scripts/clean-manifests.sh --delete 200
 
-      - uses: actions/upload-artifact@v7.0.2
+      - name: Upload the list of deleted manifests
         if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: deleted-manifests
           path: scripts/deleted-manifests.tsv

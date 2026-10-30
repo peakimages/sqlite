@@ -27,22 +27,24 @@ defaults:
     shell: bash
 
 jobs:
-  version:
-    name: Select the releases
+  plan:
+    name: Plan releases
     if: ${{ github.repository == 'peakimages/sqlite' }}
     permissions:
       contents: read
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
     timeout-minutes: 10
     outputs:
-      releases: ${{ steps.version.outputs.releases }}
+      releases: ${{ steps.plan.outputs.releases }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - id: version
+      - name: Plan the releases
+        id: plan
         env:
           BRANCH: ${{ github.ref_name }}
         run: |
@@ -51,17 +53,17 @@ jobs:
 
   build:
     name: Build
-    needs: version
-    if: ${{ needs.version.outputs.releases != '[]' }}
+    needs: plan
+    if: ${{ needs.plan.outputs.releases != '[]' }}
     permissions:
       contents: read
     uses: $/.github/workflows/build.yaml
     with:
-      lines: ${{ needs.version.outputs.releases }}
+      lines: ${{ needs.plan.outputs.releases }}
 
   publish:
-    name: Publish ${{ matrix.release.tag }}
-    needs: [version, build]
+    name: Publish release (${{ matrix.release.tag }})
+    needs: [plan, build]
     permissions:
       contents: write # create the GitHub release and its tag
       packages: write # push the tested images to ghcr.io
@@ -72,24 +74,28 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        release: ${{ fromJSON(needs.version.outputs.releases) }}
+        release: ${{ fromJSON(needs.plan.outputs.releases) }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/download-artifact@v8.0.2
+      - name: Download the tested images
+        uses: actions/download-artifact@v8.0.2
         with:
           pattern: image-${{ matrix.release.name }}-*
           path: ${{ runner.temp }}/images
 
-      - uses: docker/login-action@v4.7.0
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/login-action@v4.7.0
+      - name: Log in to docker.io
+        uses: docker/login-action@v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -134,7 +140,7 @@ jobs:
           gh release create "$TAG" "${args[@]}"
 
   tags:
-    name: Move the tags
+    name: Move tags
     needs: publish
     permissions:
       contents: write # mark the GitHub release that latest points at as the latest release
@@ -145,7 +151,8 @@ jobs:
     runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -156,13 +163,15 @@ jobs:
           tags="$(scripts/plan-version.sh --tags)"
           echo "tags=$tags" | tee -a "$GITHUB_OUTPUT"
 
-      - uses: docker/login-action@v4.7.0
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/login-action@v4.7.0
+      - name: Log in to docker.io
+        uses: docker/login-action@v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
