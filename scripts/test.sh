@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="${1:?usage: scripts/test.sh IMAGE}"
+OPTION="$*"
+IMAGE="${1:-}"
 CONTAINER=sqlite-test
 WORK_DIR="$(mktemp -d)"
 
@@ -18,6 +19,7 @@ cd "$(dirname "$0")/.."
 trap cleanup EXIT
 
 main() {
+	[[ "$OPTION" =~ ^[^-][^[:space:]]*$ ]] || die "'$OPTION' is not an option, expected an image"
 	heading "Testing $IMAGE"
 	check_version
 	check_default_database
@@ -26,10 +28,12 @@ main() {
 	check_databases
 	check_healthcheck
 	check_restart
+	check_other_user
 	check_creation_settings
 	check_rejected_settings
 	heading "Data"
 	seed_database
+	recover_database
 	backup_database
 	restore_database
 	check_stop
@@ -39,10 +43,10 @@ main() {
 check_version() {
 	local printed version source_id
 	printed="$(docker run --rm "$IMAGE" --version)"
-	version="$(jq -r .version src/version.json)"
-	source_id="$(jq -r .source_id src/version.json)"
+	version="$(docker image inspect --format '{{ index .Config.Labels "dev.peakimages.sqlite.version" }}' "$IMAGE")"
+	source_id="$(jq -r --arg version "$version" '.sqlite[] | select(.version == $version) | .source_id' src/upstream.json)"
 	[[ "$printed" == "$version $source_id "* ]] || die "sqlite3 --version prints '$printed', expected '$version $source_id'"
-	ok "sqlite3 --version prints $version with the source id from src/version.json"
+	ok "sqlite3 --version prints $version with the source id src/upstream.json pins for it"
 }
 
 check_default_database() {
@@ -67,12 +71,12 @@ start_container() {
 }
 
 check_databases() {
-	local owner
+	local file
 	[ "$(sql app.sqlite 'PRAGMA journal_mode;')" = wal ] || die "app.sqlite is not in WAL mode"
 	[ "$(sql jobs.sqlite 'PRAGMA journal_mode;')" = wal ] || die "jobs.sqlite is not in WAL mode"
-	owner="$(docker exec "$CONTAINER" stat -c '%u:%g' jobs.sqlite)"
-	[ "$owner" = 65532:65532 ] || die "jobs.sqlite is owned by $owner, expected 65532:65532"
-	ok "app.sqlite and jobs.sqlite from SQLITE_DATABASES are created in WAL mode, owned by $owner"
+	file="$(docker exec "$CONTAINER" stat -c '%a %u:%g' jobs.sqlite)"
+	[ "$file" = '666 65532:65532' ] || die "jobs.sqlite has mode and owner '$file', expected 666 65532:65532"
+	ok "app.sqlite and jobs.sqlite from SQLITE_DATABASES are created in WAL mode, mode 666, owned by 65532:65532"
 }
 
 check_healthcheck() {
@@ -88,6 +92,22 @@ check_restart() {
 	[ "$(sql app.sqlite 'PRAGMA journal_mode;')" = delete ] || die "a restart changed the journal mode of an existing database"
 	sql app.sqlite 'PRAGMA journal_mode=WAL;' > /dev/null
 	ok "a restart leaves an existing database as it is"
+}
+
+check_other_user() {
+	local rows
+	docker run -d --name "$CONTAINER-user" --user 1000:1000 -v "$CONTAINER:/var/lib/sqlite" "$IMAGE" \
+		sh -c 'printf "CREATE TABLE shared(id INTEGER PRIMARY KEY); INSERT INTO shared DEFAULT VALUES;\n" | { cat; sleep 60; } | sqlite3 jobs.sqlite' > /dev/null
+	for _ in $(seq 30); do
+		rows="$(sql jobs.sqlite 'SELECT count(*) FROM shared;' 2> /dev/null || true)"
+		[ "$rows" = 1 ] && break
+		sleep 1
+	done
+	[ "$rows" = 1 ] || die "a container running as uid 1000 could not write to jobs.sqlite: $(docker logs "$CONTAINER-user" 2>&1 | tail -n 1)"
+	[ "$(docker exec "$CONTAINER" stat -c '%a' jobs.sqlite-shm)" = 666 ] || die "jobs.sqlite-shm is not mode 666 while uid 1000 holds a connection"
+	[ "$(sql jobs.sqlite 'INSERT INTO shared DEFAULT VALUES; SELECT count(*) FROM shared;')" = 2 ] || die "the image user cannot write jobs.sqlite while uid 1000 holds a connection"
+	docker rm -f "$CONTAINER-user" > /dev/null
+	ok "a container running as uid 1000 writes jobs.sqlite, the image user writes it too while that connection is open"
 }
 
 check_creation_settings() {
@@ -128,8 +148,25 @@ seed_database() {
 	[ "$(sql app.sqlite "SELECT json_extract('{\"a\":1}','\$.a') + sqrt(16);")" = 5.0 ] || die "JSON or math functions"
 	[ "$(sql app.sqlite "SELECT soundex('Robert');")" = R163 ] || die "soundex()"
 	[ "$(sql app.sqlite 'SELECT count(*) > 0 FROM dbstat;')" = 1 ] || die "dbstat"
+	[ "$(sql app.sqlite 'SELECT count(*) > 0 FROM sqlite_dbpage;')" = 1 ] || die "dbpage"
+	[ "$(sql app.sqlite 'SELECT count(*) > 0 FROM sqlite_stmt;')" = 1 ] || die "stmt"
 	[ "$(sql app.sqlite 'PRAGMA integrity_check;')" = ok ] || die "integrity check after seeding"
-	ok "FTS3, FTS4, FTS5, R*Tree, Geopoly, JSON, math functions, soundex() and dbstat work"
+	ok "FTS3, FTS4, FTS5, R*Tree, Geopoly, JSON, math functions, soundex(), dbstat, dbpage and stmt work"
+}
+
+recover_database() {
+	local page result
+	sql app.sqlite "VACUUM INTO 'damaged.sqlite';"
+	[ "$(sql damaged.sqlite .dbinfo | sed -nE 's/^database page size: +//p')" = 4096 ] || die ".dbinfo does not print the page size 4096"
+	sql damaged.sqlite 'CREATE TABLE junk(id INTEGER PRIMARY KEY, filler BLOB); INSERT INTO junk(filler) SELECT randomblob(500) FROM t;'
+	page="$(sql damaged.sqlite "SELECT rootpage FROM sqlite_master WHERE name = 'junk';")"
+	sql -cmd '.dbconfig defensive off' damaged.sqlite "UPDATE sqlite_dbpage SET data = randomblob(4096) WHERE pgno = $page;" > /dev/null
+	[ "$(sql damaged.sqlite 'PRAGMA integrity_check;' 2>&1 | head -n 1)" != ok ] || die "overwriting page $page of damaged.sqlite left it intact"
+	docker exec "$CONTAINER" sh -c 'sqlite3 damaged.sqlite .recover | sqlite3 recovered.sqlite > /dev/null && rm damaged.sqlite' || die ".recover failed on the damaged database"
+	result="$(sql recovered.sqlite 'PRAGMA integrity_check; SELECT count(*) FROM t;' | tr '\n' ' ')"
+	[ "$result" = 'ok 3 ' ] || die "the recovered database is not intact and complete, got '$result'"
+	docker exec "$CONTAINER" rm recovered.sqlite
+	ok ".dbinfo prints the page size, .recover rebuilds the rows from a database with a destroyed page"
 }
 
 backup_database() {
@@ -173,7 +210,7 @@ sql() {
 }
 
 cleanup() {
-	docker rm -f "$CONTAINER" "$CONTAINER-default" "$CONTAINER-settings" > /dev/null 2>&1 || true
+	docker rm -f "$CONTAINER" "$CONTAINER-default" "$CONTAINER-settings" "$CONTAINER-user" > /dev/null 2>&1 || true
 	docker volume rm -f "$CONTAINER" > /dev/null 2>&1 || true
 	rm -rf "$WORK_DIR"
 }

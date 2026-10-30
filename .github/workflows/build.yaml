@@ -1,0 +1,150 @@
+name: Build
+
+on:
+  schedule:
+    - cron: "50 7 * * 1"
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      lines:
+        description: The upstream lines to build as JSON, every line of src/upstream.json when empty
+        type: string
+        default: ""
+
+permissions: {}
+
+cache-mode: none
+
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    name: Plan build
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04 # https://github.com/actions/runner-images
+    timeout-minutes: 10
+    outputs:
+      image: ${{ steps.plan.outputs.image }}
+      lines: ${{ inputs.lines || steps.plan.outputs.lines }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Plan the image version of each SQLite line
+        id: plan
+        env:
+          BRANCH: ${{ github.base_ref || github.ref_name }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          image="$(scripts/plan-version.sh --build)"
+          lines="$(jq -c '[.sqlite | to_entries[] | {name: .key, version: .value.version}]' src/upstream.json)"
+          printf 'image=%s\nlines=%s\n' "$image" "$lines" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build image (${{ matrix.line.name }}, ${{ matrix.platform }})
+    needs: plan
+    permissions:
+      contents: read
+    runs-on: ${{ matrix.runner }} # https://github.com/actions/runner-images
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        line: ${{ fromJSON(needs.plan.outputs.lines) }}
+        platform: [linux/amd64, linux/arm64, linux/arm/v7, linux/arm/v6, linux/riscv64, linux/ppc64le, linux/s390x, linux/386]
+        include:
+          - platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-26.04
+          - platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-26.04-arm
+          - platform: linux/arm/v7
+            arch: armv7
+            runner: ubuntu-26.04-arm
+            qemu: true
+          - platform: linux/arm/v6
+            arch: armv6
+            runner: ubuntu-26.04-arm
+            qemu: true
+          - platform: linux/riscv64
+            arch: riscv64
+            runner: ubuntu-26.04
+            qemu: true
+          - platform: linux/ppc64le
+            arch: ppc64le
+            runner: ubuntu-26.04
+            qemu: true
+          - platform: linux/s390x
+            arch: s390x
+            runner: ubuntu-26.04
+            qemu: true
+          - platform: linux/386
+            arch: "386"
+            runner: ubuntu-26.04
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the commit date
+        id: args
+        run: |
+          {
+            echo "epoch=$(git log -1 --format=%ct)"
+            echo "created=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        if: ${{ matrix.qemu }}
+        uses: docker/setup-qemu-action@v4.4.0
+        with:
+          image: docker.io/tonistiigi/binfmt:qemu-v10.2.3-68@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0 # https://github.com/tonistiigi/binfmt/releases/tag/deploy/v10.2.3-68
+          cache-image: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4.4.1
+        with:
+          cache-binary: false
+
+      - name: Build the image
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: src
+          platforms: ${{ matrix.platform }}
+          tags: peakimages/sqlite:test
+          outputs: type=oci,dest=${{ runner.temp }}/image,tar=false,rewrite-timestamp=true,compression=zstd,compression-level=11,force-compression=true
+          build-args: |
+            SQLITE_VERSION=${{ matrix.line.version }}
+            IMAGE_VERSION=${{ needs.plan.outputs.image }}
+            SOURCE_DATE_EPOCH=${{ steps.args.outputs.epoch }}
+            CREATED=${{ steps.args.outputs.created }}
+            GIT_SHA=${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+
+      - name: Upload the image
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: image-${{ matrix.line.name }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/image
+          if-no-files-found: error
+          retention-days: 1
+
+  tests:
+    name: Tests
+    needs: [plan, build]
+    permissions:
+      contents: read
+    uses: $/.github/workflows/tests.yaml
+    with:
+      lines: ${{ needs.plan.outputs.lines }}

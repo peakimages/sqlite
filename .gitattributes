@@ -1,6 +1,7 @@
 * text=auto eol=lf
 
 *.md diff=markdown
+CHANGELOG.md merge=union
 
 /.github export-ignore
 .editorconfig export-ignore

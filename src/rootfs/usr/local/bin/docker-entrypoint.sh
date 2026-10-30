@@ -60,6 +60,7 @@ validate_databases() {
 
 create_database() {
 	sqlite3 "$DATA_DIR/$1" "PRAGMA page_size=$page_size; PRAGMA auto_vacuum=$auto_vacuum; PRAGMA user_version=0; PRAGMA journal_mode=$journal_mode;" > /dev/null
+	chmod 0666 "$DATA_DIR/$1"
 	echo "docker-entrypoint: created $1, page size $page_size, auto_vacuum $auto_vacuum, journal mode $journal_mode"
 }
 
