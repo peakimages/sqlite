@@ -3,7 +3,7 @@
 Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v1.4.0-beta.1`.
 
 > [!IMPORTANT]
-> A push that changes `release.json` or `src/upstream.json` publishes every release of it whose tag does not exist yet. Check what a push publishes with `scripts/plan-version.sh` first.
+> A push that changes `release.json` or `src/upstream.json` releases the versions they set, unless they are released already. Run `scripts/plan-version.sh` first to see what a push releases.
 
 ## Rules
 
@@ -153,8 +153,11 @@ Missing description and license on ghcr.io
 
 ## Pull requests
 
-The pull request workflow builds every pull request and publishes the image of the line `latest` of one from a branch of this repository as `ghcr.io/peakimages/sqlite:pr-<number>`, versioned `<base>-pr.<number>`: pull request 1234 into `next` is `1.4.0-beta.1-pr.1234` after `1.4.0-beta.1` and `1.5.0-alpha.0-pr.1234` before the first alpha of 1.5.0, into `main` `1.3.4-pr.1234`. PHP's `version_compare` sorts it after its base and before the next prerelease or release.
+The pull request workflow builds every pull request and publishes the image of the line `latest` of a pull request from a branch of this repository as `ghcr.io/peakimages/sqlite:pr-<number>`. Its version is `<base>-pr.<number>`:
 
+- Into `next`: `1.4.0-beta.1-pr.1234` after `1.4.0-beta.1`, or `1.5.0-alpha.0-pr.1234` before the first alpha of 1.5.0
+- Into `main`: `1.3.4-pr.1234`
+- PHP's `version_compare` sorts it after its base and before the next prerelease or release
 - Pull requests from forks and Dependabot are built, not published
 - A push to a pull request from `main`, `next`, a release branch or a patch branch that changes `release.json` or `src/upstream.json` is not built, the release workflow builds it
 - ghcr.io only, no git tag and no GitHub release, the clean manifests workflow keeps the image while the pull request is open
