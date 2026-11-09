@@ -68,7 +68,7 @@ write_document() {
 
 verify_files() {
 	jq -r '.artifacts[].metadata.files[]?.path' "$OUTPUT_FILE" | while read -r path; do
-		[ -f "/rootfs$path" ] || die "$path is not a file in /rootfs"
+		[ -e "/rootfs$path" ] || die "$path is not in /rootfs"
 	done
 }
 
