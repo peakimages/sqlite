@@ -4,7 +4,8 @@ set -eu
 USAGE="usage: sbom.sh IMAGE COMPONENT..., a component is apk|NAME|VENDOR:PRODUCT|PATH..., deb|NAME|LICENSE|VENDOR:PRODUCT|PATH... or generic|NAME|VERSION|LICENSE|URL|VENDOR:PRODUCT"
 IMAGE="${1:-}"
 REPOSITORY="${IMAGE%:*}"
-OUTPUT_FILE="/rootfs/var/lib/db/sbom/${REPOSITORY##*/}-${IMAGE##*:}.syft.json"
+ROOT_DIR="${ROOT_DIR:-/rootfs}"
+OUTPUT_FILE="$ROOT_DIR/var/lib/db/sbom/${REPOSITORY##*/}-${IMAGE##*:}.syft.json"
 
 die() {
 	echo "sbom: $*" >&2
@@ -68,7 +69,7 @@ write_document() {
 
 verify_files() {
 	jq -r '.artifacts[].metadata.files[]?.path' "$OUTPUT_FILE" | while read -r path; do
-		[ -e "/rootfs$path" ] || die "$path is not in /rootfs"
+		[ -e "$ROOT_DIR$path" ] || die "$path is not in $ROOT_DIR"
 	done
 }
 
