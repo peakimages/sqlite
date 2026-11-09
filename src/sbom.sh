@@ -5,6 +5,7 @@ USAGE="usage: sbom.sh IMAGE COMPONENT..., a component is apk|NAME|VENDOR:PRODUCT
 IMAGE="${1:-}"
 REPOSITORY="${IMAGE%:*}"
 ROOT_DIR="${ROOT_DIR:-/rootfs}"
+SCHEMA_VERSION="${SYFT_SCHEMA_VERSION:-}"
 OUTPUT_FILE="$ROOT_DIR/var/lib/db/sbom/${REPOSITORY##*/}-${IMAGE##*:}.syft.json"
 
 die() {
@@ -14,6 +15,7 @@ die() {
 
 main() {
 	[ "$#" -gt 1 ] || die "$USAGE"
+	[ -n "$SCHEMA_VERSION" ] || die "SYFT_SCHEMA_VERSION is not set, src/Dockerfile pins the version of the syft schema"
 	shift
 	write_document "$@"
 	verify_files
@@ -22,7 +24,7 @@ main() {
 
 write_document() {
 	mkdir -p "${OUTPUT_FILE%/*}"
-	cat /lib/apk/db/installed /var/lib/dpkg/status 2> /dev/null | jq -Rsc --rawfile os_release /etc/os-release --arg usage "$USAGE" '
+	cat /lib/apk/db/installed /var/lib/dpkg/status 2> /dev/null | jq -Rsc --rawfile os_release /etc/os-release --arg usage "$USAGE" --arg image "$IMAGE" --arg repository "$REPOSITORY" --arg tag "${IMAGE##*:}" --arg schema "$SCHEMA_VERSION" '
 		([$os_release | split("\n")[] | capture("^(?<key>[A-Z_]+)=\"?(?<value>[^\"]*)")] | from_entries) as $os
 		| [
 			split("\n\n")[] | [split("\n")[] | capture("^(?<key>[^ :]+): ?(?<value>.*)$")] | from_entries
@@ -34,10 +36,14 @@ write_document() {
 		def package($type; $name; $version; $license; $cpe; $purl):
 			($cpe | select(test("^[a-z0-9._-]+:[a-z0-9._-]+$")) // error("sbom: \($cpe) is not a CPE, expected VENDOR:PRODUCT")) as $cpe
 			| {
+				id: "\($type)-\($name)-\($version)",
 				name: $name,
 				version: $version,
 				type: $type,
-				licenses: [{ value: $license, spdxExpression: $license, type: "declared" }],
+				foundBy: "sbom.sh",
+				locations: [],
+				licenses: [{ value: $license, spdxExpression: $license, type: "declared", urls: [], locations: [] }],
+				language: "",
 				cpes: [{ cpe: "cpe:2.3:a:\($cpe):\($version | gsub("(?<c>[^A-Za-z0-9._-])"; "\\\(.c)")):*:*:*:*:*:*:*", source: "declared" }],
 				purl: $purl
 			};
@@ -63,7 +69,11 @@ write_document() {
 				elif $type == "generic" and length == 6 then generic($name; .[2]; .[3]; .[4]; .[5])
 				else error("sbom: \(join("|")) is not a component, \($usage)") end
 			],
-			schema: { version: "16.1.10", url: "https://raw.githubusercontent.com/anchore/syft/main/schema/json/schema-16.1.10.json" }
+			artifactRelationships: [],
+			source: { id: "", name: $repository, version: $tag, type: "image", metadata: { userInput: $image } },
+			distro: {},
+			descriptor: { name: "sbom.sh", version: "" },
+			schema: { version: $schema, url: "https://raw.githubusercontent.com/anchore/syft/main/schema/json/schema-\($schema).json" }
 		}' --args "$@" > "$OUTPUT_FILE"
 }
 

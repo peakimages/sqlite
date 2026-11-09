@@ -10,6 +10,8 @@ ARG BASE_IMAGE=alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf5196
 ARG TINI_VERSION=0.19.0-r3
 # https://pkgs.alpinelinux.org/package/v3.24/main/x86_64/busybox-static
 ARG BUSYBOX_VERSION=1.37.0-r31
+# https://github.com/anchore/syft/tree/v1.57.1/schema/json
+ARG SYFT_SCHEMA_VERSION=16.1.13
 
 # Set by the build workflow
 ARG IMAGE_VERSION
@@ -23,6 +25,7 @@ ARG SQLITE_VERSION
 ARG IMAGE_VERSION
 ARG TINI_VERSION
 ARG BUSYBOX_VERSION
+ARG SYFT_SCHEMA_VERSION
 
 # curl, jq and openssl are only used during the build stage, so they are not pinned to a specific version
 # hadolint ignore=DL3018
