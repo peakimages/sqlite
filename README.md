@@ -122,6 +122,30 @@ The defaults are set in the image, override them with `-e` or the `environment` 
 | `SQLITE_PAGE_SIZE`    | `4096`            | Page size of a new database, a power of two from `512` to `65536`. **Fixed once the database has content**                |
 | `SQLITE_TMPDIR`       | unset             | Directory for the temporary files of sorts and vacuums. Default `/tmp`, or the data directory when `/tmp` is not writable |
 
+## Attestations
+
+Every image carries an SBOM and a provenance attestation.
+
+The SBOM lists the packages of the image:
+
+```sh
+docker buildx imagetools inspect peakimages/sqlite:latest --format '{{ json .SBOM }}'
+```
+
+The provenance records how the image was built:
+
+```sh
+docker buildx imagetools inspect peakimages/sqlite:latest --format '{{ json .Provenance }}'
+```
+
+A scanner lists the same packages, Trivy all but SQLite:
+
+```sh
+syft peakimages/sqlite:latest
+grype peakimages/sqlite:latest
+trivy image peakimages/sqlite:latest
+```
+
 ## Releases
 
 Every SQLite release becomes a new version of the image. A check for new SQLite versions runs twice a day.

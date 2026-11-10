@@ -10,8 +10,6 @@ ARG BASE_IMAGE=alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf5196
 ARG TINI_VERSION=0.19.0-r3
 # https://pkgs.alpinelinux.org/package/v3.24/main/x86_64/busybox-static
 ARG BUSYBOX_VERSION=1.37.0-r31
-# https://github.com/anchore/syft/tree/v1.57.1/schema/json
-ARG SYFT_SCHEMA_VERSION=16.1.13
 
 # Set by the build workflow
 ARG IMAGE_VERSION
@@ -22,10 +20,8 @@ ARG GIT_SHA
 FROM ${BASE_IMAGE} AS build
 
 ARG SQLITE_VERSION
-ARG IMAGE_VERSION
 ARG TINI_VERSION
 ARG BUSYBOX_VERSION
-ARG SYFT_SCHEMA_VERSION
 
 # curl, jq and openssl are only used during the build stage, so they are not pinned to a specific version
 # hadolint ignore=DL3018
@@ -84,12 +80,12 @@ COPY --chmod=0755 rootfs/ /rootfs/
 COPY --chmod=0644 rootfs.sh /src/
 RUN sh /src/rootfs.sh
 
-# A scratch image has no package database for the SBOM scanner to read, this syft JSON document takes its place
+# A scratch image has no package database for the SBOM scanner to read, sbom.sh declares its packages
 COPY --chmod=0644 sbom.sh /src/
-RUN sh /src/sbom.sh "peakimages/sqlite:${SQLITE_VERSION}-v${IMAGE_VERSION:?}" \
-        "generic|sqlite|${SQLITE_VERSION}|blessing|$(jq -r .url /src/sqlite.json)|sqlite:sqlite" \
-        "apk|tini-static|tini_project:tini|/sbin/tini" \
-        "apk|busybox-static|busybox:busybox|/bin/busybox"
+RUN sh /src/sbom.sh peakimages/sqlite "PeakImages SQLite" \
+        "generic|sqlite|${SQLITE_VERSION}|blessing|sqlite:sqlite|/usr/local/bin/sqlite3" \
+        "apk|tini-static|/sbin/tini" \
+        "apk|busybox-static|/bin/busybox"
 
 FROM scratch AS final
 
