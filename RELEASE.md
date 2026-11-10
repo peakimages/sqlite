@@ -113,11 +113,11 @@ Missing description and license on ghcr.io
 1. Pin the line on a branch from `main`:
 
    ```sh
-   git switch -c feat/sqlite-3.53 origin/main && scripts/check-upstream.sh 3.53
+   git switch -c feat/sqlite-3.53 origin/main && scripts/check-upstream.sh v3.53
    ```
 
 2. Squash merge a pull request as `feat(release): add the SQLite 3.53 line`, the push publishes `v3.53.4-v1.3.0`
-3. To stop the line, remove `3.53` from `src/upstream.json`, its tags stay where they are
+3. To stop the line, remove `v3.53` from `src/upstream.json`, its tags stay where they are
 
 ## Release a major version
 

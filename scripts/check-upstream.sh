@@ -19,7 +19,7 @@ cd "$(dirname "$0")/.."
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 main() {
-	[[ "$OPTION" =~ ^(latest|[0-9]+(\.[0-9]+)*)?$ ]] || die "'$OPTION' is not an option, expected a line such as 3.53, latest or none"
+	[[ "$OPTION" =~ ^(latest|v[0-9]+(\.[0-9]+)?)?$ ]] || die "'$OPTION' is not an option, expected a line such as v3.53, latest or none"
 	read_newest_release
 	compare_with_pinned
 	download_amalgamation
@@ -34,7 +34,7 @@ read_newest_release() {
 	local release year number
 	fetch "$WORK_DIR/chronology.html" https://sqlite.org/chronology.html
 	release="$(sed -nE "s|.*>([0-9]{4})-[0-9]{2}-[0-9]{2}</a></td>\$|year \1|p; s|.*data-sortkey='([0-9]+)'><a href=\"releaselog/[0-9_]+\.html\">($VERSION_PATTERN)</a>.*|version \1 \2|p" "$WORK_DIR/chronology.html" \
-		| awk -v line="$LINE." '$1 == "year" { year = $2 } $1 == "version" && (line == "latest." || index($3 ".", line) == 1) { print year, $2, $3 }' \
+		| awk -v line="${LINE#v}." '$1 == "year" { year = $2 } $1 == "version" && (line == "latest." || index($3 ".", line) == 1) { print year, $2, $3 }' \
 		| sort -k3,3V | tail -n 1)"
 	[ -n "$release" ] || die "sqlite.org/chronology.html lists no SQLite $LINE release"
 	read -r year number new_version <<< "$release"
