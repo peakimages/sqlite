@@ -4,8 +4,8 @@
 ARG SQLITE_VERSION=3.54.1
 
 # Build dependencies
-# https://hub.docker.com/_/alpine/tags?name=3.24.3
-ARG BASE_IMAGE=alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+# https://hub.docker.com/_/alpine/tags?name=3.24.4
+ARG BASE_IMAGE=alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 # https://pkgs.alpinelinux.org/package/v3.24/community/x86_64/tini-static
 ARG TINI_VERSION=0.19.0-r3
 # https://pkgs.alpinelinux.org/package/v3.24/main/x86_64/busybox-static
