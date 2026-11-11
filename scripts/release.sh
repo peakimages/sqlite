@@ -4,7 +4,7 @@ set -euo pipefail
 OPTION="$*"
 VERSION_FILE=release.json
 CHANGE_DIRECTORY=.changes
-SECTIONS='Breaking Changes,Security,Added,Changed,Deprecated,Removed,Fixed,Maintenance'
+SECTIONS='Breaking Changes,Security,Added,Changed,Deprecated,Removed,Fixed,Refactored,Maintenance'
 ARTIFACT=image
 UPSTREAM=sqlite
 WORK_DIR="$(mktemp -d)"

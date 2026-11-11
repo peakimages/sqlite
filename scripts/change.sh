@@ -2,8 +2,8 @@
 set -euo pipefail
 
 CHANGE_DIRECTORY=.changes
-TYPES='added,changed,deprecated,removed,fixed,security,maintenance'
-SECTIONS='Breaking Changes,Security,Added,Changed,Deprecated,Removed,Fixed,Maintenance'
+TYPES='added,changed,deprecated,removed,fixed,security,refactored,maintenance'
+SECTIONS='Breaking Changes,Security,Added,Changed,Deprecated,Removed,Fixed,Refactored,Maintenance'
 
 BOLD=$'\033[1m' GREEN=$'\033[32m' RED=$'\033[31m' DIM=$'\033[2m' RESET=$'\033[0m'
 
