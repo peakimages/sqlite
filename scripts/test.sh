@@ -27,6 +27,7 @@ main() {
 	start_container
 	check_databases
 	check_healthcheck
+	check_locked_database
 	check_restart
 	check_other_user
 	check_creation_settings
@@ -83,6 +84,25 @@ check_healthcheck() {
 	docker exec "$CONTAINER" healthcheck.sh app.sqlite,jobs.sqlite || die "healthcheck.sh app.sqlite,jobs.sqlite failed"
 	docker exec "$CONTAINER" healthcheck.sh app.sqlite,missing.sqlite 2> /dev/null && die "healthcheck.sh passed with a missing file"
 	ok "healthcheck.sh passes for app.sqlite,jobs.sqlite and fails as soon as one file is missing"
+}
+
+check_locked_database() {
+	local holder
+	touch "$WORK_DIR/hold"
+	(
+		echo 'PRAGMA locking_mode = EXCLUSIVE; BEGIN EXCLUSIVE;'
+		while [ -e "$WORK_DIR/hold" ]; do sleep 1; done
+	) | docker exec -i "$CONTAINER" sqlite3 jobs.sqlite > /dev/null &
+	holder=$!
+	for _ in $(seq 30); do
+		docker exec "$CONTAINER" sqlite3 -readonly jobs.sqlite 'PRAGMA schema_version;' > /dev/null 2>&1 || break
+		sleep 1
+	done
+	docker exec "$CONTAINER" healthcheck.sh jobs.sqlite || die "healthcheck.sh failed for jobs.sqlite while another connection holds it locked, expected it to take no lock"
+	docker exec "$CONTAINER" sqlite3 -readonly jobs.sqlite 'PRAGMA schema_version;' > /dev/null 2>&1 && die "jobs.sqlite is not locked, expected a connection in exclusive locking mode to hold it"
+	rm "$WORK_DIR/hold"
+	wait "$holder" || die "the connection that held jobs.sqlite locked failed"
+	ok "healthcheck.sh passes for jobs.sqlite while another connection holds it in exclusive locking mode"
 }
 
 check_restart() {
