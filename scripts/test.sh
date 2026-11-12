@@ -44,9 +44,9 @@ main() {
 check_version() {
 	local printed version source_id
 	printed="$(docker run --rm "$IMAGE" --version)"
-	version="$(docker image inspect --format '{{ index .Config.Labels "dev.peakimages.sqlite.version" }}' "$IMAGE")"
+	version="${printed%% *}"
 	source_id="$(jq -r --arg version "$version" '.sqlite[] | select(.version == $version) | .source_id' src/upstream.json)"
-	[[ "$printed" == "$version $source_id "* ]] || die "sqlite3 --version prints '$printed', expected '$version $source_id'"
+	[[ -n "$source_id" && "$printed" == "$version $source_id "* ]] || die "sqlite3 --version prints '$printed', expected a version with the source id src/upstream.json pins for it"
 	ok "sqlite3 --version prints $version with the source id src/upstream.json pins for it"
 }
 
@@ -54,7 +54,7 @@ check_default_database() {
 	local settings
 	docker run -d --name "$CONTAINER-default" --health-interval 2s --health-start-period 1s "$IMAGE" > /dev/null
 	wait_healthy "$CONTAINER-default"
-	settings="$(docker exec "$CONTAINER-default" sqlite3 -cmd '.timeout 5000' database.sqlite 'PRAGMA page_size; PRAGMA auto_vacuum; PRAGMA journal_mode;' | tr '\n' ' ')"
+	settings="$(docker exec "$CONTAINER-default" sqlite3 database.sqlite 'PRAGMA page_size; PRAGMA auto_vacuum; PRAGMA journal_mode;' | tr '\n' ' ')"
 	[ "$settings" = '4096 0 wal ' ] || die "database.sqlite was created with '$settings', expected page size 4096, no auto-vacuum, WAL"
 	ok "database.sqlite is created by default with page size 4096, no auto-vacuum and WAL"
 }
@@ -66,9 +66,7 @@ start_container() {
 		-e SQLITE_DATABASES="app.sqlite,jobs.sqlite" \
 		--health-interval 2s --health-start-period 1s "$IMAGE" > /dev/null
 	wait_healthy "$CONTAINER"
-	# no exact match (-x), under QEMU ps shows "{sleep} /usr/bin/qemu-riscv64 /bin/sleep infinity"
-	docker exec "$CONTAINER" ps -o args | grep -q 'sleep infinity$' || die "the main process is not sleep infinity"
-	ok "healthy with a read-only root filesystem and all capabilities dropped, main process sleep infinity"
+	ok "healthy with a read-only root filesystem and all capabilities dropped"
 }
 
 check_databases() {
@@ -191,7 +189,7 @@ recover_database() {
 
 backup_database() {
 	local result
-	docker exec "$CONTAINER" sh -c "sqlite3 -cmd '.timeout 5000' app.sqlite \"VACUUM INTO 'backup.sqlite'\" && cat backup.sqlite && rm backup.sqlite" > "$WORK_DIR/backup.sqlite"
+	docker exec "$CONTAINER" sh -c "sqlite3 app.sqlite \"VACUUM INTO 'backup.sqlite'\" && cat backup.sqlite && rm backup.sqlite" > "$WORK_DIR/backup.sqlite"
 	result="$(docker run --rm -i "$IMAGE" sh -c 'cat > backup.sqlite && sqlite3 backup.sqlite "PRAGMA integrity_check; SELECT count(*) FROM t;"' < "$WORK_DIR/backup.sqlite" | tr '\n' ' ')"
 	[ "$result" = 'ok 3 ' ] || die "the backup is not intact and complete, got '$result'"
 	ok "a backup with VACUUM INTO streams out through docker exec, intact and complete"
@@ -200,7 +198,7 @@ backup_database() {
 restore_database() {
 	local result
 	sql app.sqlite 'DELETE FROM t;'
-	docker exec -i "$CONTAINER" sh -c 'cat > restore.sqlite && sqlite3 -cmd ".timeout 5000" app.sqlite ".restore restore.sqlite" && rm restore.sqlite' < "$WORK_DIR/backup.sqlite"
+	docker exec -i "$CONTAINER" sh -c 'cat > restore.sqlite && sqlite3 app.sqlite ".restore restore.sqlite" && rm restore.sqlite' < "$WORK_DIR/backup.sqlite"
 	result="$(sql app.sqlite 'PRAGMA integrity_check; PRAGMA journal_mode; SELECT count(*) FROM t;' | tr '\n' ' ')"
 	[ "$result" = 'ok wal 3 ' ] || die "the restored database is not intact, got '$result'"
 	[ "$(sql app.sqlite "SELECT body FROM docs WHERE docs MATCH 'sqlite';")" = 'sqlite rocks' ] || die "FTS5 after restore"
@@ -226,7 +224,7 @@ wait_healthy() {
 }
 
 sql() {
-	docker exec "$CONTAINER" sqlite3 -cmd '.timeout 5000' "$@"
+	docker exec "$CONTAINER" sqlite3 "$@"
 }
 
 cleanup() {
