@@ -84,15 +84,17 @@ COPY --from=peakimages/sqlite:3.54.1-v0.2.0 /usr/local/bin/sqlite3 /usr/local/bi
 
 ## Available Image Variations
 
-For now there is just one image variation. All tags follow this pattern:
+All tags follow this pattern:
 
 ```sh
 peakimages/sqlite:{{sqlite-version}}-v{{image-version}}
 ```
 
-| Variation | Best For                                                            | Example                                                      |
-| --------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
-| default   | Every SQLite deployment, from a Coolify service to a Kubernetes pod | `peakimages/sqlite:3.54.1-v0.2.0` `peakimages/sqlite:3.54.1` |
+| Flavor  | Variant   | Best For                                                            | Example                                                      |
+| ------- | --------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
+| default | `runtime` | Every SQLite deployment, from a Coolify service to a Kubernetes pod | `peakimages/sqlite:3.54.1-v0.2.0` `peakimages/sqlite:3.54.1` |
+
+The default is the `runtime` variant, SQLite on `scratch` without a package manager.
 
 ### Tags
 
