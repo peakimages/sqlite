@@ -120,6 +120,8 @@ jobs:
 
       - name: Build the image
         uses: docker/build-push-action@v7.4.0
+        env:
+          DOCKER_BUILD_SUMMARY: false
         with:
           context: src
           platforms: ${{ matrix.platform }}
