@@ -42,9 +42,11 @@ jobs:
       - name: Plan the image version of each SQLite line
         id: plan
         env:
+          GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.base_ref || github.ref_name }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
         run: |
+          gh auth setup-git
           image="$(scripts/plan-version.sh --build)"
           lines="$(jq -c '[.sqlite | to_entries[] | {name: .key, version: .value.version}]' src/upstream.json)"
           printf 'image=%s\nlines=%s\n' "$image" "$lines" >> "$GITHUB_OUTPUT"
