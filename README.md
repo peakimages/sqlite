@@ -84,15 +84,17 @@ COPY --from=peakimages/sqlite:3.54.1-v0.2.0 /usr/local/bin/sqlite3 /usr/local/bi
 
 ## Available Image Variations
 
-For now there is just one image variation. All tags follow this pattern:
+All tags follow this pattern:
 
 ```sh
 peakimages/sqlite:{{sqlite-version}}-v{{image-version}}
 ```
 
-| Variation | Best For                                                            | Example                                                      |
-| --------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
-| default   | Every SQLite deployment, from a Coolify service to a Kubernetes pod | `peakimages/sqlite:3.54.1-v0.2.0` `peakimages/sqlite:3.54.1` |
+| Flavor  | Variant   | Best For                                                            | Example                                                      |
+| ------- | --------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
+| default | `runtime` | Every SQLite deployment, from a Coolify service to a Kubernetes pod | `peakimages/sqlite:3.54.1-v0.2.0` `peakimages/sqlite:3.54.1` |
+
+The default is the `runtime` variant, SQLite on `scratch` without a package manager.
 
 ### Tags
 
@@ -122,8 +124,36 @@ The defaults are set in the image, override them with `-e` or the `environment` 
 | `SQLITE_PAGE_SIZE`    | `4096`            | Page size of a new database, a power of two from `512` to `65536`. **Fixed once the database has content**                |
 | `SQLITE_TMPDIR`       | unset             | Directory for the temporary files of sorts and vacuums. Default `/tmp`, or the data directory when `/tmp` is not writable |
 
+## Attestations
+
+Every image carries an SBOM and a provenance attestation.
+
+The SBOM lists the packages of the image:
+
+```sh
+docker buildx imagetools inspect peakimages/sqlite:latest --format '{{ json .SBOM }}'
+```
+
+The provenance records how the image was built:
+
+```sh
+docker buildx imagetools inspect peakimages/sqlite:latest --format '{{ json .Provenance }}'
+```
+
+A scanner lists the same packages, Trivy all but SQLite:
+
+```sh
+syft peakimages/sqlite:latest
+grype peakimages/sqlite:latest
+trivy image peakimages/sqlite:latest
+```
+
 ## Releases
 
 Every SQLite release becomes a new version of the image. A check for new SQLite versions runs twice a day.
 
 The image version follows semantic versioning independently of SQLite. Changes to the image are listed in [CHANGELOG.md](CHANGELOG.md).
+
+## Trademarks
+
+This image is built and published by PeakImages. All third-party product names, logos and trademarks are the property of their respective owners and are used solely for identification. PeakImages claims no interest in those marks, and no affiliation, sponsorship or endorsement is implied.

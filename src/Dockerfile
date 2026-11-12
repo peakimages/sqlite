@@ -3,9 +3,10 @@
 # Set by scripts/check-upstream.sh
 ARG SQLITE_VERSION=3.54.1
 
-# Build dependencies
-# https://hub.docker.com/_/alpine/tags?name=3.24.3
-ARG BASE_IMAGE=alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+# Dependencies
+# https://hub.docker.com/_/alpine/tags?name=3.24.4
+ARG BASE_IMAGE=alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+ARG DISTRO=alpine-3.24
 # https://pkgs.alpinelinux.org/package/v3.24/community/x86_64/tini-static
 ARG TINI_VERSION=0.19.0-r3
 # https://pkgs.alpinelinux.org/package/v3.24/main/x86_64/busybox-static
@@ -20,7 +21,6 @@ ARG GIT_SHA
 FROM ${BASE_IMAGE} AS build
 
 ARG SQLITE_VERSION
-ARG IMAGE_VERSION
 ARG TINI_VERSION
 ARG BUSYBOX_VERSION
 
@@ -76,24 +76,21 @@ RUN gcc -static-pie -fPIE -Os \
         shell.c sqlite3.c -lm -o sqlite3 \
     && strip --strip-all sqlite3
 
-# Assemble the root filesystem of the final image in /rootfs
 COPY --chmod=0755 rootfs/ /rootfs/
 COPY --chmod=0644 rootfs.sh /src/
 RUN sh /src/rootfs.sh
 
-# A scratch image has no package database for the SBOM scanner to read, this syft JSON document takes its place
 COPY --chmod=0644 sbom.sh /src/
-RUN sh /src/sbom.sh "peakimages/sqlite:${SQLITE_VERSION}-v${IMAGE_VERSION:?}" \
-        "generic|sqlite|${SQLITE_VERSION}|blessing|$(jq -r .url /src/sqlite.json)|sqlite:sqlite" \
-        "apk|tini-static|tini_project:tini|/sbin/tini" \
-        "apk|busybox-static|busybox:busybox|/bin/busybox"
+RUN sh /src/sbom.sh peakimages/sqlite "PeakImages SQLite" \
+        "generic|sqlite|${SQLITE_VERSION}|blessing|sqlite:sqlite|/usr/local/bin/sqlite3" \
+        "apk|tini-static|/sbin/tini" \
+        "apk|busybox-static|/bin/busybox"
 
 FROM scratch AS final
 
+ARG DISTRO
 ARG SQLITE_VERSION
 ARG IMAGE_VERSION
-ARG TINI_VERSION
-ARG BUSYBOX_VERSION
 ARG CREATED
 ARG GIT_SHA
 
@@ -102,20 +99,23 @@ COPY --from=build /rootfs/ /
 LABEL org.opencontainers.image.title="SQLite" \
     org.opencontainers.image.description="Minimal, production-ready, hardened and secure SQLite Docker image." \
     org.opencontainers.image.version="${SQLITE_VERSION}-v${IMAGE_VERSION}" \
-    org.opencontainers.image.created="${CREATED}" \
     org.opencontainers.image.revision="${GIT_SHA}" \
-    org.opencontainers.image.licenses="blessing AND MIT AND GPL-2.0-only AND AGPL-3.0-or-later" \
-    org.opencontainers.image.authors="peakimages" \
-    org.opencontainers.image.vendor="peakimages" \
+    org.opencontainers.image.created="${CREATED}" \
+    org.opencontainers.image.licenses="AGPL-3.0-or-later AND blessing" \
+    org.opencontainers.image.authors="PeakImages" \
+    org.opencontainers.image.vendor="PeakImages" \
     org.opencontainers.image.url="https://hub.docker.com/r/peakimages/sqlite" \
-    org.opencontainers.image.source="https://github.com/peakimages/sqlite" \
     org.opencontainers.image.documentation="https://github.com/peakimages/sqlite#readme" \
-    org.opencontainers.image.base.name="scratch" \
-    dev.peakimages.sqlite.version="${SQLITE_VERSION}" \
-    dev.peakimages.sqlite.extensions="fts3,fts4,fts5,rtree,geopoly,math,dbstat,dbpage,stmt,soundex" \
-    dev.peakimages.tini.version="${TINI_VERSION}" \
-    dev.peakimages.busybox.version="${BUSYBOX_VERSION}" \
-    dev.peakimages.image.version="${IMAGE_VERSION}"
+    org.opencontainers.image.source="https://github.com/peakimages/sqlite" \
+    org.opencontainers.image.base.name="" \
+    org.opencontainers.image.base.digest="" \
+    dev.peakimages.image.version="${IMAGE_VERSION}" \
+    dev.peakimages.image.upstream.version="${SQLITE_VERSION}" \
+    dev.peakimages.image.distro="${DISTRO}" \
+    dev.peakimages.image.variant="runtime" \
+    dev.peakimages.image.flavor="" \
+    dev.peakimages.image.shell="busybox" \
+    dev.peakimages.image.package-manager=""
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     SQLITE_DATABASES=database.sqlite \

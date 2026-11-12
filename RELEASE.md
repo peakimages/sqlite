@@ -3,7 +3,7 @@
 Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v1.4.0-beta.1`.
 
 > [!IMPORTANT]
-> A push that changes `release.json` or `src/upstream.json` publishes every release of it whose tag does not exist yet. Check what a push publishes with `scripts/plan-version.sh` first.
+> A push that changes `release.json` or `src/upstream.json` releases the versions they set, unless they are released already. Run `scripts/plan-version.sh` first to see what a push releases.
 
 ## Rules
 
@@ -17,6 +17,7 @@ Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v
 | `v1.2.x`       | backports and hotfixes, cut from the newest tag of v1.2    | stable `1.2.x` versions                |
 
 - `main` takes fixes only. A new minor or major reaches it as a merge of `next` or a release branch
+- Merge `next` or a release branch into `main` only right before you release it, on the same day. To freeze a minor for longer, publish an RC on `next` or cut `release/v1.4`
 - `next` and the release branches publish prereleases only, their stable versions are released on `main`
 - Name a branch after what it changes: `fix/<topic>`, `feat/<topic>`, and `fix/<topic>-v1.2.2` for a backport, after the version that releases it
 - Squash merge pull requests from contributors and pull requests with a single change, such as SQLite updates
@@ -35,11 +36,12 @@ Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v
 > [!NOTE]
 > `next` publishes prereleases only. For its stable version, merge `next` into `main` with a merge commit and create the release on `main`.
 
-1. Describe the changes under `## [Unreleased]` in `CHANGELOG.md`, they become the release notes
-2. Check what the branch releases:
+1. Describe the changes in change files with `scripts/change.sh`, they become the release notes, see [Change files](#change-files)
+2. Check what the branch releases and the entries it lists:
 
    ```sh
    scripts/plan-version.sh
+   scripts/change.sh --notes
    ```
 
 3. Select the stage and the version, the script commits them and asks to push:
@@ -56,6 +58,27 @@ Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v
 > ```sh
 > scripts/undo-release.sh
 > ```
+
+## Change files
+
+Every change to the image has a file in `.changes/`, `AGENTS.md` describes the types and the wording:
+
+```text
+---
+type: fixed
+commit: 1a2b3c4
+---
+Missing description and license on ghcr.io
+
+- The release index carries the labels of the image as annotations
+```
+
+- `scripts/change.sh` writes a file, it asks for what its flags leave out, and `--notes` prints the entries of the next release
+- `scripts/release.sh` preselects the version the files need and writes them into `CHANGELOG.md`, the release workflow reads its notes from there
+- A prerelease writes the files under `## [Unreleased]`, keeps them and adds its version to the files that have none
+- A stable release writes the files under `## [v1.4.0] - <date>` and removes them
+- `scripts/undo-release.sh` brings the files back as they were
+- A new SQLite version needs no file, the release workflow writes its notes
 
 ## Backport a fix
 
@@ -90,11 +113,11 @@ Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v
 1. Pin the line on a branch from `main`:
 
    ```sh
-   git switch -c feat/sqlite-3.53 origin/main && scripts/check-upstream.sh 3.53
+   git switch -c feat/sqlite-3.53 origin/main && scripts/check-upstream.sh v3.53
    ```
 
 2. Squash merge a pull request as `feat(release): add the SQLite 3.53 line`, the push publishes `v3.53.4-v1.3.0`
-3. To stop the line, remove `3.53` from `src/upstream.json`, its tags stay where they are
+3. To stop the line, remove `v3.53` from `src/upstream.json`, its tags stay where they are
 
 ## Release a major version
 
@@ -130,8 +153,11 @@ Every release is tagged `v<sqlite version>-v<image version>`, such as `v3.54.1-v
 
 ## Pull requests
 
-The pull request workflow builds every pull request and publishes the image of the line `latest` of one from a branch of this repository as `ghcr.io/peakimages/sqlite:pr-<number>`, versioned `<base>-pr.<number>`: pull request 1234 into `next` is `1.4.0-beta.1-pr.1234` after `1.4.0-beta.1` and `1.5.0-alpha.0-pr.1234` before the first alpha of 1.5.0, into `main` `1.3.4-pr.1234`. PHP's `version_compare` sorts it after its base and before the next prerelease or release.
+The pull request workflow builds every pull request and publishes the image of the line `latest` of a pull request from a branch of this repository as `ghcr.io/peakimages/sqlite:pr-<number>`. Its version is `<base>-pr.<number>`:
 
+- Into `next`: `1.4.0-beta.1-pr.1234` after `1.4.0-beta.1`, or `1.5.0-alpha.0-pr.1234` before the first alpha of 1.5.0
+- Into `main`: `1.3.4-pr.1234`
+- PHP's `version_compare` sorts it after its base and before the next prerelease or release
 - Pull requests from forks and Dependabot are built, not published
 - A push to a pull request from `main`, `next`, a release branch or a patch branch that changes `release.json` or `src/upstream.json` is not built, the release workflow builds it
 - ghcr.io only, no git tag and no GitHub release, the clean manifests workflow keeps the image while the pull request is open

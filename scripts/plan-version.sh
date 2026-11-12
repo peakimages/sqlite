@@ -59,9 +59,13 @@ print_build_version() {
 }
 
 fetch_origin() {
-	local current behind
+	local current behind fetched stale
 	[ "$(git rev-parse --is-shallow-repository)" = false ] || die "the clone is shallow, run git fetch --unshallow first"
-	git fetch --quiet --prune --tags origin || die "could not fetch origin"
+	fetched="$(git fetch --porcelain --no-progress --prune --tags origin)" || {
+		stale="$(awk '$1 == "!" { sub("^refs/tags/", "", $4); print $4 }' <<< "$fetched" | paste -sd ' ' -)"
+		[ -z "$stale" ] || die "the local tag(s) $stale differ from origin, check them with git ls-remote --tags origin, then run git fetch --tags --force origin"
+		die "could not fetch origin"
+	}
 	current="$(git branch --show-current)"
 	if [ -n "$current" ] && behind="$(git rev-list --count "HEAD..origin/$current" 2> /dev/null)"; then
 		[ "$behind" = 0 ] || die "$current is $behind commit(s) behind origin/$current, pull first"
@@ -126,21 +130,21 @@ check_version() {
 }
 
 select_releases() {
-	local name sqlite tag previous older moves listed added=""
+	local name upstream tag previous older moves listed added=""
 	releases=
 	[ "$publish" = true ] || return 0
-	while read -r name sqlite; do
-		tag="v${sqlite:+$sqlite-v}$version"
+	while read -r name upstream; do
+		tag="v${upstream:+$upstream-v}$version"
 		if grep -qxF "$tag" <<< "$tags"; then
 			info "$tag is published"
 			continue
 		fi
 		previous=
 		while read -r older; do
-			! newer "$sqlite" "$older" || previous="$older"
+			! newer "$upstream" "$older" || previous="$older"
 		done < <(with_version "$version" <<< "$tags" | sed -nE 's/^v(.*)-v.*/\1/p')
 		added+="$tag"$'\n'
-		releases+="$(jq -nc --arg name "$name" --arg version "$sqlite" --arg image "$version" --arg tag "$tag" --arg previous "$previous" \
+		releases+="$(jq -nc --arg name "$name" --arg version "$upstream" --arg image "$version" --arg tag "$tag" --arg previous "$previous" \
 			'{$name, $version, $image, $tag, $previous}')"$'\n'
 	done < <(upstream_lines)
 	moves="$(moved_tags "$tags" "$tags"$'\n'"$added")"
@@ -259,7 +263,7 @@ moved_tags() {
 }
 
 moving_tags() {
-	local tags releases latest preview base image sqlite prefix seen=" "
+	local tags releases latest preview base image upstream prefix seen=" "
 	tags="$(cat)"
 	releases="$(sed -nE 's/^v((.*)-v)?([^-]*)$/\3 \2/p' <<< "$tags" | sort -k1,1rV -k2,2rV)"
 	latest="$(awk 'NR == 1 && NF { print "v" ($2 == "" ? "" : $2 "-v") $1 }' <<< "$releases")"
@@ -273,10 +277,10 @@ moving_tags() {
 	done < <(tag_versions <<< "$tags" | sed -n 's/-.*//p' | sort -uV)
 	[ -z "$latest" ] || echo "latest $latest"
 	[ -z "$preview" ] || echo "preview $preview"
-	while read -r image sqlite; do
-		prefix="$sqlite"
+	while read -r image upstream; do
+		prefix="$upstream"
 		while [ -n "$prefix" ] && [[ "$seen" != *" $prefix "* ]]; do
-			echo "$prefix v$sqlite-v$image"
+			echo "$prefix v$upstream-v$image"
 			seen+="$prefix "
 			[[ "$prefix" == *.* ]] || break
 			prefix="${prefix%.*}"
