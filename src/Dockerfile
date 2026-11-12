@@ -3,7 +3,7 @@
 # Set by scripts/check-upstream.sh
 ARG SQLITE_VERSION=3.54.1
 
-# Build dependencies
+# Dependencies
 # https://hub.docker.com/_/alpine/tags?name=3.24.4
 ARG BASE_IMAGE=alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 ARG DISTRO=alpine-3.24
@@ -76,12 +76,10 @@ RUN gcc -static-pie -fPIE -Os \
         shell.c sqlite3.c -lm -o sqlite3 \
     && strip --strip-all sqlite3
 
-# Assemble the root filesystem of the final image in /rootfs
 COPY --chmod=0755 rootfs/ /rootfs/
 COPY --chmod=0644 rootfs.sh /src/
 RUN sh /src/rootfs.sh
 
-# A scratch image has no package database for the SBOM scanner to read, sbom.sh declares its packages
 COPY --chmod=0644 sbom.sh /src/
 RUN sh /src/sbom.sh peakimages/sqlite "PeakImages SQLite" \
         "generic|sqlite|${SQLITE_VERSION}|blessing|sqlite:sqlite|/usr/local/bin/sqlite3" \
