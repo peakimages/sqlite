@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v0.3.0] - 2026-11-12
+
+### Security
+
+- Moved the home of `nonroot` from `/var/lib/sqlite` to `/home/nonroot`, `sqlite3` runs the `.sqliterc` of the home on every start, and every user can write `/var/lib/sqlite`
+  - `sqlite3` reads its startup file from `/home/nonroot/.sqliterc`, which only `nonroot` can write
+  - The working directory stays `/var/lib/sqlite`
+
+### Changed
+
+- Alpine in the build stage from 3.24.3 to 3.24.4
+- Image labels to one set that every image uses
+  - `dev.peakimages.image` gains `distro`, `variant`, `flavor`, `shell` and `package-manager`
+  - `dev.peakimages.image.upstream.version` replaces `dev.peakimages.sqlite.version`
+  - `dev.peakimages.sqlite.extensions`, `dev.peakimages.tini.version` and `dev.peakimages.busybox.version` are removed, `README.md` lists the extensions and the SBOM the packages
+  - `org.opencontainers.image.licenses` names the license of the image and of SQLite, and `base.name` is empty with an empty `base.digest` for an image built from `scratch`
+- Vendor and authors labels from `peakimages` to `PeakImages`, the name as it is written everywhere but in a URL or an image name
+
+### Fixed
+
+- Health check failing with `database is locked` while an application writes, and making the writes of an application without a busy timeout fail
+  - The health check reads every database with `immutable=1`, which takes no lock
+  - When that read fails, it opens the database as before, with a busy timeout of 3 seconds
+- Scanners listing the wrong packages and the wrong OS, `syft` found only `busybox 1.37.0`, `grype` reported two BusyBox CVEs Alpine has fixed and none of SQLite, and Trivy found nothing
+  - `sqlite3` carries a package note and the image the apk package database records of tini and BusyBox, `syft` and `grype` list all three, Trivy all but SQLite
+  - A scanner reports the image as Alpine, the release tini and BusyBox are taken from, instead of BusyBox or no OS, the same way Docker Hardened Images does
+  - The SBOM attestation lists the same three packages as before, it was already correct, but a scanner does not read it and makes its own list from the image
+  - The syft document in `/var/lib/db/sbom` that BuildKit made the SBOM attestation from is gone, BuildKit runs syft, which reads the package note and the apk package database natively
+  - `syft` no longer needs the `--select-catalogers +sbom-cataloger` flag to read the custom SBOM in the syft JSON file, as its default list is now correct too
+
 ## [v0.2.0] - 2026-10-30
 
 Older SQLite lines, prereleases and four more platforms, reproducible builds, a new release process, and databases that any uid can write.
