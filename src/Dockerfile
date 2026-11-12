@@ -6,6 +6,7 @@ ARG SQLITE_VERSION=3.54.1
 # Build dependencies
 # https://hub.docker.com/_/alpine/tags?name=3.24.4
 ARG BASE_IMAGE=alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+ARG DISTRO=alpine-3.24
 # https://pkgs.alpinelinux.org/package/v3.24/community/x86_64/tini-static
 ARG TINI_VERSION=0.19.0-r3
 # https://pkgs.alpinelinux.org/package/v3.24/main/x86_64/busybox-static
@@ -89,10 +90,9 @@ RUN sh /src/sbom.sh peakimages/sqlite "PeakImages SQLite" \
 
 FROM scratch AS final
 
+ARG DISTRO
 ARG SQLITE_VERSION
 ARG IMAGE_VERSION
-ARG TINI_VERSION
-ARG BUSYBOX_VERSION
 ARG CREATED
 ARG GIT_SHA
 
@@ -101,20 +101,23 @@ COPY --from=build /rootfs/ /
 LABEL org.opencontainers.image.title="SQLite" \
     org.opencontainers.image.description="Minimal, production-ready, hardened and secure SQLite Docker image." \
     org.opencontainers.image.version="${SQLITE_VERSION}-v${IMAGE_VERSION}" \
-    org.opencontainers.image.created="${CREATED}" \
     org.opencontainers.image.revision="${GIT_SHA}" \
-    org.opencontainers.image.licenses="blessing AND MIT AND GPL-2.0-only AND AGPL-3.0-or-later" \
+    org.opencontainers.image.created="${CREATED}" \
+    org.opencontainers.image.licenses="AGPL-3.0-or-later AND blessing" \
     org.opencontainers.image.authors="PeakImages" \
     org.opencontainers.image.vendor="PeakImages" \
     org.opencontainers.image.url="https://hub.docker.com/r/peakimages/sqlite" \
-    org.opencontainers.image.source="https://github.com/peakimages/sqlite" \
     org.opencontainers.image.documentation="https://github.com/peakimages/sqlite#readme" \
-    org.opencontainers.image.base.name="scratch" \
-    dev.peakimages.sqlite.version="${SQLITE_VERSION}" \
-    dev.peakimages.sqlite.extensions="fts3,fts4,fts5,rtree,geopoly,math,dbstat,dbpage,stmt,soundex" \
-    dev.peakimages.tini.version="${TINI_VERSION}" \
-    dev.peakimages.busybox.version="${BUSYBOX_VERSION}" \
-    dev.peakimages.image.version="${IMAGE_VERSION}"
+    org.opencontainers.image.source="https://github.com/peakimages/sqlite" \
+    org.opencontainers.image.base.name="" \
+    org.opencontainers.image.base.digest="" \
+    dev.peakimages.image.version="${IMAGE_VERSION}" \
+    dev.peakimages.image.upstream.version="${SQLITE_VERSION}" \
+    dev.peakimages.image.distro="${DISTRO}" \
+    dev.peakimages.image.variant="runtime" \
+    dev.peakimages.image.flavor="" \
+    dev.peakimages.image.shell="busybox" \
+    dev.peakimages.image.package-manager=""
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     SQLITE_DATABASES=database.sqlite \
