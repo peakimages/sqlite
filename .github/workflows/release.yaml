@@ -134,7 +134,7 @@ jobs:
 
           ## Changed
 
-          - Bump SQLite version from v$PREVIOUS to v$SQLITE_VERSION
+          - SQLite from v$PREVIOUS to v$SQLITE_VERSION
           NOTES
           fi
           gh release create "$TAG" "${args[@]}"
