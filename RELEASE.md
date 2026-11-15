@@ -74,6 +74,7 @@ Missing description and license on ghcr.io
 ```
 
 - `scripts/change.sh` writes a file, it asks for what its flags leave out, and `--notes` prints the entries of the next release
+- A section lists its entries in the order of their file names, the version bumps, whose summary ends in `from <version> to <version>`, after the other changes
 - `scripts/release.sh` preselects the version the files need and writes them into `CHANGELOG.md`, the release workflow reads its notes from there
 - A prerelease writes the files under `## [Unreleased]`, keeps them and adds its version to the files that have none
 - A stable release writes the files under `## [v1.4.0] - <date>` and removes them
