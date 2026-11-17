@@ -93,7 +93,7 @@ write_change() {
 		printf -- '---\ntype: %s\n' "$kind"
 		[ -z "$breaking" ] || printf 'breaking: true\n'
 		[ -z "$commit" ] || printf 'commit: %s\n' "$commit"
-		printf -- '---\n%s\n' "$summary"
+		printf -- '---\n\n%s\n' "$summary"
 		[ "${#details[@]}" = 0 ] || printf '\n'
 		for detail in ${details[@]+"${details[@]}"}; do
 			printf -- '- %s\n' "$detail"
