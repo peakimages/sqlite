@@ -7,6 +7,7 @@ PULL_REQUEST="${PULL_REQUEST:-}"
 VERSION_FILE=release.json
 ARTIFACT=image
 UPSTREAM_FILE=src/upstream.json
+PATCHES_DIR=src/patches
 UPSTREAM=sqlite
 
 BOLD=$'\033[1m' BLUE=$'\033[34m' GREEN=$'\033[32m' YELLOW=$'\033[33m' RED=$'\033[31m' RESET=$'\033[0m'
@@ -160,8 +161,8 @@ select_releases() {
 check_unreleased() {
 	local count
 	[ -n "$releases" ] && [ -n "$earlier" ] || return 0
-	count="$(git rev-list --no-merges "$earlier..HEAD" -- src | grep -cvxF -f <(git rev-list "$earlier..HEAD" -- "$UPSTREAM_FILE") || true)"
-	[ "$count" = 0 ] || die "$count commit(s) since $earlier change src/ and would ship as $version, release them first with scripts/release.sh"
+	count="$(git rev-list --no-merges "$earlier..HEAD" -- src ":(exclude)$PATCHES_DIR" | grep -cvxF -f <(git rev-list "$earlier..HEAD" -- "$UPSTREAM_FILE") || true)"
+	[ "$count" = 0 ] || die "$count commit(s) since $earlier change src/ outside $PATCHES_DIR/ and would ship as $version, release them first with scripts/release.sh"
 }
 
 print_upcoming_versions() {
